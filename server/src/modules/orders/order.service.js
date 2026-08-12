@@ -33,17 +33,18 @@ const createOrder = async ({
 
 
         // ------------------------------------------------
-        // 1. Verify active session
+        // 1. Verify active customer session
         // ------------------------------------------------
 
-        const [sessions] = await connection.query(
+        const [sessionRows] = await connection.query(
             `SELECT
                 ts.id,
                 ts.customer_id,
                 ts.table_id,
+                ts.session_type,
                 rt.table_number
              FROM table_sessions ts
-             INNER JOIN restaurant_tables rt
+             LEFT JOIN restaurant_tables rt
                 ON rt.id = ts.table_id
              WHERE ts.id = ?
              AND ts.is_active = 1
@@ -51,18 +52,32 @@ const createOrder = async ({
             [sessionId]
         );
 
-        if (!sessions.length) {
+
+        if (!sessionRows.length) {
+
             throw new AppError(
                 "Active customer session not found",
                 404
             );
+
         }
 
-        const session = sessions[0];
+
+        const session = sessionRows[0];
 
 
         // ------------------------------------------------
-        // 2. Check existing pending order
+        // 2. Determine Order Mode
+        // ------------------------------------------------
+
+        const orderMode =
+            session.session_type === "Takeaway"
+                ? "Takeaway"
+                : "DineIn";
+
+
+        // ------------------------------------------------
+        // 3. Check Existing Pending Order
         // ------------------------------------------------
 
         const [existingOrders] = await connection.query(
@@ -76,62 +91,67 @@ const createOrder = async ({
         );
 
 
-        let order;
         let orderId;
 
 
         // ------------------------------------------------
-        // 3. Existing Pending Order
+        // 4. Existing Pending Order
         // ------------------------------------------------
 
         if (existingOrders.length) {
 
-            order = existingOrders[0];
-            orderId = order.id;
+            orderId = existingOrders[0].id;
 
         }
 
 
         // ------------------------------------------------
-        // 4. Create New Order
+        // 5. Create New Order
         // ------------------------------------------------
 
         else {
 
             const [sessionOrders] = await connection.query(
-    `SELECT id
-     FROM orders
-     WHERE session_id = ?
-     LIMIT 1`,
-    [sessionId]
-);
+                `SELECT id
+                 FROM orders
+                 WHERE session_id = ?
+                 LIMIT 1`,
+                [sessionId]
+            );
 
-const orderType =
-    sessionOrders.length > 0
-        ? "Additional"
-        : "New";
 
-const orderNumber = generateOrderNumber();
+            const orderType =
+                sessionOrders.length > 0
+                    ? "Additional"
+                    : "New";
 
-const [result] = await connection.query(
-    `INSERT INTO orders
-    (
-        order_number,
-        session_id,
-        order_type,
-        status,
-        total,
-        notes,
-        estimated_ready_time
-    )
-    VALUES (?, ?, ?, 'Pending', 0, ?, 15)`,
-    [
-        orderNumber,
-        sessionId,
-        orderType,
-        notes || null
-    ]
-);
+
+            const orderNumber =
+                generateOrderNumber();
+
+
+            const [result] = await connection.query(
+                `INSERT INTO orders
+                (
+                    order_number,
+                    session_id,
+                    order_type,
+                    order_mode,
+                    status,
+                    total,
+                    notes,
+                    estimated_ready_time
+                )
+                VALUES (?, ?, ?, ?, 'Pending', 0, ?, 15)`,
+                [
+                    orderNumber,
+                    sessionId,
+                    orderType,
+                    orderMode,
+                    notes || null
+                ]
+            );
+
 
             orderId = result.insertId;
 
@@ -139,10 +159,8 @@ const [result] = await connection.query(
 
 
         // ------------------------------------------------
-        // 5. Process Items
+        // 6. Process Items
         // ------------------------------------------------
-
-        let addedTotal = 0;
 
         for (const item of items) {
 
@@ -158,6 +176,7 @@ const [result] = await connection.query(
                 [item.menu_id]
             );
 
+
             if (!menuRows.length) {
 
                 throw new AppError(
@@ -166,6 +185,7 @@ const [result] = await connection.query(
                 );
 
             }
+
 
             const menuItem = menuRows[0];
 
@@ -200,15 +220,15 @@ const [result] = await connection.query(
 
             const subtotal = price * quantity;
 
-            addedTotal += subtotal;
-
 
             // ------------------------------------------------
-            // Check if item already exists in pending order
+            // Check Existing Item
             // ------------------------------------------------
 
             const [existingItems] = await connection.query(
-                `SELECT id, quantity
+                `SELECT
+                    id,
+                    quantity
                  FROM order_items
                  WHERE order_id = ?
                  AND menu_item_id = ?
@@ -223,10 +243,13 @@ const [result] = await connection.query(
             if (existingItems.length) {
 
                 const newQuantity =
-                    existingItems[0].quantity + quantity;
+                    Number(existingItems[0].quantity) +
+                    quantity;
+
 
                 const newSubtotal =
                     price * newQuantity;
+
 
                 await connection.query(
                     `UPDATE order_items
@@ -270,7 +293,7 @@ const [result] = await connection.query(
 
 
         // ------------------------------------------------
-        // 6. Recalculate Complete Order Total
+        // 7. Recalculate Complete Order Total
         // ------------------------------------------------
 
         const [totalRows] = await connection.query(
@@ -281,11 +304,13 @@ const [result] = await connection.query(
             [orderId]
         );
 
-        const total = Number(totalRows[0].total);
+
+        const total =
+            Number(totalRows[0].total);
 
 
         // ------------------------------------------------
-        // 7. Update Order
+        // 8. Update Order
         // ------------------------------------------------
 
         await connection.query(
@@ -303,7 +328,7 @@ const [result] = await connection.query(
 
 
         // ------------------------------------------------
-        // 8. Get Complete Order
+        // 9. Get Complete Order
         // ------------------------------------------------
 
         const [orderRows] = await connection.query(
@@ -312,15 +337,19 @@ const [result] = await connection.query(
                 o.order_number,
                 o.session_id,
                 o.order_type,
+                o.order_mode,
                 o.status,
                 o.total,
                 o.notes,
+                o.estimated_ready_time,
+                o.preparing_at,
+                o.ready_at,
                 o.created_at,
                 rt.table_number
              FROM orders o
              INNER JOIN table_sessions ts
                 ON ts.id = o.session_id
-             INNER JOIN restaurant_tables rt
+             LEFT JOIN restaurant_tables rt
                 ON rt.id = ts.table_id
              WHERE o.id = ?`,
             [orderId]
@@ -364,7 +393,66 @@ const [result] = await connection.query(
         connection.release();
 
     }
+};
 
+const getOrderById = async (orderId, sessionId) => {
+
+ 
+    const orderRows = await db.query(
+        `SELECT
+        o.id,
+        o.order_number,
+        o.session_id,
+        o.order_type,
+        o.order_mode,
+        o.status,
+        o.total,
+        o.notes,
+        o.estimated_ready_time,
+        o.preparing_at,
+        o.ready_at,
+        o.created_at,
+        o.updated_at,
+        rt.table_number
+     FROM orders o
+     LEFT JOIN table_sessions ts
+        ON ts.id = o.session_id
+     LEFT JOIN restaurant_tables rt
+        ON rt.id = ts.table_id
+     WHERE o.id = ?
+     AND o.session_id = ?
+     LIMIT 1`,
+        [orderId, sessionId]
+    );
+
+
+    if (!orderRows.length) {
+        throw new AppError(
+            "Order not found",
+            404
+        );
+    }
+
+    const items = await db.query(
+        `SELECT
+            oi.id,
+            oi.menu_item_id,
+            m.name,
+            oi.quantity,
+            oi.price,
+            oi.subtotal
+         FROM order_items oi
+         INNER JOIN menu_items m
+            ON m.id = oi.menu_item_id
+         WHERE oi.order_id = ?
+         ORDER BY oi.id ASC`,
+        [orderId]
+    );
+
+    return {
+        ...orderRows[0],
+        items
+    };
 };
 
 
@@ -416,7 +504,59 @@ const getCurrentOrders = async (sessionId) => {
     return orders;
 };
 
+const getOrderHistory = async (sessionId) => {
+
+    const orders = await db.query(
+        `SELECT
+            o.id,
+            o.order_number,
+            o.session_id,
+            o.order_type,
+            o.order_mode,
+            o.status,
+            o.total,
+            o.notes,
+            o.created_at,
+            o.updated_at,
+            rt.table_number
+         FROM orders o
+         INNER JOIN table_sessions ts
+            ON ts.id = o.session_id
+         LEFT JOIN restaurant_tables rt
+            ON rt.id = ts.table_id
+         WHERE o.session_id = ?
+         AND o.status IN ('Served', 'Cancelled')
+         ORDER BY o.id DESC`,
+        [sessionId]
+    );
+
+    for (const order of orders) {
+
+        order.items = await db.query(
+            `SELECT
+                oi.id,
+                oi.menu_item_id,
+                m.name,
+                oi.quantity,
+                oi.price,
+                oi.subtotal
+             FROM order_items oi
+             INNER JOIN menu_items m
+                ON m.id = oi.menu_item_id
+             WHERE oi.order_id = ?
+             ORDER BY oi.id ASC`,
+            [order.id]
+        );
+
+    }
+
+    return orders;
+};
+
+
 module.exports = {
-createOrder,
-    getCurrentOrders
+    createOrder,
+    getCurrentOrders,
+    getOrderById,
+    getOrderHistory
 };

@@ -11,6 +11,8 @@ module.exports = cleanEnv(process.env, {
   DB_NAME: str(),
 
   JWT_SECRET: str(),
+  
+  CUSTOMER_JWT_SECRET: str(),
 
   CLIENT_URL: str(),
 });

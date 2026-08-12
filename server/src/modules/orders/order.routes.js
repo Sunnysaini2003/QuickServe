@@ -29,5 +29,17 @@ router.get(
     orderController.getCurrentOrders
 );
 
+router.get(
+    "/history",
+    authenticateCustomer,
+   orderController.getOrderHistory
+)
+
+router.get(
+    "/:id",
+    authenticateCustomer,
+    orderController.getOrderById
+);
+
 
 module.exports = router;

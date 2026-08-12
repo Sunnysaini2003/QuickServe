@@ -33,6 +33,19 @@ const updateOrderStatus = async (req, res, next) => {
                 req.body.status
             );
 
+        // Get Socket.io
+        const io = req.app.get("io");
+
+        if (io) {
+
+            // Send update to customer's session
+            io.to(`session_${order.session_id}`).emit(
+                "order_status_updated",
+                order
+            );
+
+        }
+
         return success(
             res,
             "Order status updated successfully",
@@ -45,7 +58,6 @@ const updateOrderStatus = async (req, res, next) => {
 
     }
 };
-
 
 module.exports = {
     getKitchenOrders,

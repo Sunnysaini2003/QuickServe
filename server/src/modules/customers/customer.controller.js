@@ -43,7 +43,33 @@ const getCustomerSession = async (req, res, next) => {
     }
 };
 
+const createTakeawaySession = async (req, res, next) => {
+
+    try {
+
+        const result =
+            await customerService.createTakeawaySession({
+                name: req.body.name,
+                mobile: req.body.mobile
+            });
+
+        return success(
+            res,
+            "Takeaway session created successfully",
+            result,
+            201
+        );
+
+    } catch (error) {
+
+        next(error);
+
+    }
+};
+
+
 module.exports = {
     createCustomerSession,
-    getCustomerSession
+    getCustomerSession,
+    createTakeawaySession
 };

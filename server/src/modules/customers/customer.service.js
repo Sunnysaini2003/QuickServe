@@ -4,6 +4,8 @@ const jwt = require("jsonwebtoken");
 const db = require("../../utils/db");
 const AppError = require("../../utils/AppError");
 const env = require("../../config/env");
+const crypto = require("crypto");
+
 
 const createCustomerSession = async ({
     table_token,
@@ -162,6 +164,111 @@ const createCustomerSession = async ({
     };
 };
 
+const createTakeawaySession = async ({ name, mobile }) => {
+
+    if (!name || !mobile) {
+        throw new AppError(
+            "Name and mobile number are required",
+            400
+        );
+    }
+
+    // Find existing customer
+    let customers = await db.query(
+        `SELECT id, name, mobile
+         FROM customers
+         WHERE mobile = ?
+         LIMIT 1`,
+        [mobile]
+    );
+
+    let customer;
+
+    if (customers.length) {
+
+        customer = customers[0];
+
+        // Keep latest name
+        await db.query(
+            `UPDATE customers
+             SET name = ?
+             WHERE id = ?`,
+            [name, customer.id]
+        );
+
+        customer.name = name;
+
+    } else {
+
+        const result = await db.query(
+            `INSERT INTO customers
+            (name, mobile)
+            VALUES (?, ?)`,
+            [name, mobile]
+        );
+
+        customer = {
+            id: result.insertId,
+            name,
+            mobile
+        };
+    }
+
+
+    // Create takeaway session
+    const sessionToken = crypto.randomUUID();
+
+    const sessionResult = await db.query(
+        `INSERT INTO table_sessions
+    (
+        customer_id,
+        table_id,
+        session_token,
+        session_type
+    )
+    VALUES (?, NULL, ?, 'Takeaway')`,
+        [
+            customer.id,
+            sessionToken
+        ]
+    );
+
+    const sessionId = sessionResult.insertId;
+
+
+    // IMPORTANT:
+    // Use the same JWT payload/secret that your
+    // existing customer session uses.
+    const token = jwt.sign(
+        {
+            customerId: customer.id,
+            sessionId: sessionId
+        },
+        env.CUSTOMER_JWT_SECRET,
+        {
+            expiresIn: "7d"
+        }
+    );
+
+
+    return {
+        customer: {
+            id: customer.id,
+            name: customer.name,
+            mobile: customer.mobile
+        },
+
+        session: {
+            id: sessionId,
+            session_type: "Takeaway"
+        },
+
+        token
+    };
+};
+
+
 module.exports = {
-    createCustomerSession
+    createCustomerSession,
+    createTakeawaySession
 };

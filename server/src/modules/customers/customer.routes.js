@@ -30,5 +30,11 @@ router.get(
     customerController.getCustomerSession
 );
 
+router.post(
+    "/takeaway",
+    validate,
+    customerController.createTakeawaySession
+);
+
 
 module.exports = router;

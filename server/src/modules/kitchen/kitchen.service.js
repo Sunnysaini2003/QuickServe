@@ -118,17 +118,37 @@ const updateOrderStatus = async (orderId, status) => {
 
     }
 
+    if (status === "Preparing") {
 
-    await db.query(
-        `UPDATE orders
+        await db.query(
+            `UPDATE orders
+         SET
+            status = ?,
+            preparing_at = COALESCE(preparing_at, CURRENT_TIMESTAMP)
+         WHERE id = ?`,
+            [status, orderId]
+        );
+
+    } else if (status === "Ready") {
+
+        await db.query(
+            `UPDATE orders
+         SET
+            status = ?,
+            ready_at = CURRENT_TIMESTAMP
+         WHERE id = ?`,
+            [status, orderId]
+        );
+
+    } else {
+
+        await db.query(
+            `UPDATE orders
          SET status = ?
          WHERE id = ?`,
-        [
-            status,
-            orderId
-        ]
-    );
-
+            [status, orderId]
+        );
+    }
 
     const updated = await db.query(
         `SELECT
