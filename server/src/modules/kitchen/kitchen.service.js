@@ -9,6 +9,7 @@ const getKitchenOrders = async () => {
             o.order_number,
             o.session_id,
             o.order_type,
+            o.order_mode,
             o.status,
             o.total,
             o.notes,

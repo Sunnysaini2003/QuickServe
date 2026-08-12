@@ -16,7 +16,6 @@ router.get(
     tableController.getTableByToken
 );
 
-
 // Admin
 router.get(
     "/",
