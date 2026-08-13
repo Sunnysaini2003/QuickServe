@@ -14,19 +14,27 @@ const {
     menuIdValidation
 } = require("./menu.validation");
 
+
+// ==========================================
+// PUBLIC CUSTOMER ROUTES
+// ==========================================
+
 router.get(
     "/",
-    authenticate,
     menuController.getAllMenu
 );
 
 router.get(
     "/:id",
-    authenticate,
     menuIdValidation,
     validate,
     menuController.getMenuById
 );
+
+
+// ==========================================
+// ADMIN ROUTES
+// ==========================================
 
 router.post(
     "/",
@@ -51,5 +59,6 @@ router.delete(
     validate,
     menuController.deleteMenu
 );
+
 
 module.exports = router;
