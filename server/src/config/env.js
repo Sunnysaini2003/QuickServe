@@ -1,3 +1,4 @@
+require("dotenv").config();
 const { cleanEnv, str, port } = require("envalid");
 
 // console.log(process.env);

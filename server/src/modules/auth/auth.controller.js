@@ -32,7 +32,30 @@ const login = async (req, res, next) => {
     }
 };
 
+const me = async (req, res, next) => {
+
+    try {
+
+        const user =
+            await authService.getCurrentUser(
+                req.user.id
+            );
+
+        return success(
+            res,
+            "User retrieved successfully",
+            user
+        );
+
+    } catch (error) {
+
+        next(error);
+
+    }
+};
+
 module.exports = {
     register,
-    login
+    login,
+    me
 };
