@@ -32,6 +32,28 @@ const createOrder = async (req, res, next) => {
     }
 };
 
+
+const getCurrentOrders = async (req, res, next) => {
+
+    try {
+
+        const orders = await orderService.getCurrentOrders(
+            req.customer.sessionId
+        );
+
+        return success(
+            res,
+            "Current orders fetched successfully",
+            orders
+        );
+
+    } catch (error) {
+
+        next(error);
+
+    }
+};
+
 const getOrderById = async (req, res, next) => {
 
     try {
@@ -45,26 +67,6 @@ const getOrderById = async (req, res, next) => {
             res,
             "Order fetched successfully",
             order
-        );
-
-    } catch (error) {
-
-        next(error);
-
-    }
-};
-const getCurrentOrders = async (req, res, next) => {
-
-    try {
-
-        const orders = await orderService.getCurrentOrders(
-            req.customer.sessionId
-        );
-
-        return success(
-            res,
-            "Current orders fetched successfully",
-            orders
         );
 
     } catch (error) {
