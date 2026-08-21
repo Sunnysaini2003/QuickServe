@@ -2,15 +2,14 @@ const express = require("express");
 const router = express.Router();
 
 const categoriesController = require("./category.controller");
-
 const authenticate = require("../auth/auth.middleware");
-
 const validate = require("../../middleware/validate");
 
 const {
-    createcategoriesValidation,
-    updatecategoriesValidation,
-    categoriesIdValidation
+    createCategoryValidation,
+    updateCategoryValidation,
+    categoryIdValidation,
+    categoryStatusValidation
 } = require("./category.validation");
 
 router.get(
@@ -22,33 +21,41 @@ router.get(
 router.get(
     "/:id",
     authenticate,
-    categoriesIdValidation,
+    categoryIdValidation,
     validate,
-    categoriesController.getcategoriesById
+    categoriesController.getCategoryById
 );
 
 router.post(
     "/",
     authenticate,
-    createcategoriesValidation,
+    createCategoryValidation,
     validate,
-    categoriesController.createcategories
+    categoriesController.createCategory
 );
 
 router.put(
     "/:id",
     authenticate,
-    updatecategoriesValidation,
+    updateCategoryValidation,
     validate,
-    categoriesController.updatecategories
+    categoriesController.updateCategory
+);
+
+router.patch(
+    "/:id/status",
+    authenticate,
+    categoryStatusValidation,
+    validate,
+    categoriesController.updateCategoryStatus
 );
 
 router.delete(
     "/:id",
     authenticate,
-    categoriesIdValidation,
+    categoryIdValidation,
     validate,
-    categoriesController.deletecategories
+    categoriesController.deleteCategory
 );
 
 module.exports = router;

@@ -1,56 +1,87 @@
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
+const helmet = require("helmet");
 
-const authRoutes = require("./modules/auth/auth.routes");
-const categoriesRoutes = require("./modules/categories/category.routes");
 const routes = require("./routes");
 
 const errorHandler = require("./middleware/errorHandler");
 const notFound = require("./middleware/notFound");
 
-const helmet = require("helmet");
-
-
 const app = express();
-app.use(cors());
 
 
-app.use(cors({
-    origin: process.env.CLIENT_URL,
-    credentials: true
-}));
+// SECURITY
 
-
-app.use(
-    "/uploads",
-    express.static(path.join(process.cwd(), "uploads"))
-);
-
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 
 app.use(helmet());
 
 
+// CORS
+
+
+app.use(
+    cors({
+        origin:
+            process.env.CLIENT_URL ||
+            "http://localhost:5173",
+        credentials: true
+    })
+);
+
+
+// STATIC UPLOADS
+
+
+app.use(
+    "/uploads",
+    express.static(
+        path.join(
+            process.cwd(),
+            "uploads"
+        )
+    )
+);
+
+
+// BODY PARSERS
+
+
+app.use(express.json());
+
+app.use(
+    express.urlencoded({
+        extended: true
+    })
+);
+
+
+// HEALTH CHECK
+
+
 app.get("/", (req, res) => {
-  res.json({
-    success: true,
-    message: "QuickServe API Running"
-  });
+    res.json({
+        success: true,
+        message: "QuickServe API Running"
+    });
 });
 
 
-// Middlewares...
+// ALL API ROUTES
+
+
 app.use("/api", routes);
-// app.use("/api/auth", authRoutes);
-// app.use("/api/categories", categoriesRoutes);
 
 
-// 404 Middleware
+// 404
+
+
 app.use(notFound);
-// Error Handler
-app.use(errorHandler);
 
+
+// ERROR HANDLER
+
+
+app.use(errorHandler);
 
 module.exports = app;

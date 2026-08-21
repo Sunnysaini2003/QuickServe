@@ -1,88 +1,124 @@
 const categoriesService = require("./category.service");
 const { success } = require("../../utils/apiResponse");
 
+// ============================================================
+// GET ALL CATEGORIES
+// ============================================================
+
 const getAllCategories = async (req, res, next) => {
     try {
-
         const categories =
-            await categoriesService.getAllCategories();
+            await categoriesService.getCategories();
 
         return success(
             res,
             "Categories fetched successfully",
             categories
         );
-
     } catch (error) {
         next(error);
     }
 };
 
-const getcategoriesById = async (req, res, next) => {
-    try {
+// ============================================================
+// GET CATEGORY BY ID
+// ============================================================
 
-        const categories =
-            await categoriesService.getcategoriesById(req.params.id);
+const getCategoryById = async (req, res, next) => {
+    try {
+        const category =
+            await categoriesService.getCategoryById(
+                req.params.id
+            );
 
         return success(
             res,
-            "categories fetched successfully",
-            categories
+            "Category fetched successfully",
+            category
         );
-
     } catch (error) {
         next(error);
     }
 };
 
-const createcategories = async (req, res, next) => {
-    try {
+// ============================================================
+// CREATE CATEGORY
+// ============================================================
 
-        const categories =
-            await categoriesService.createcategories(req.body);
+const createCategory = async (req, res, next) => {
+    try {
+        const category =
+            await categoriesService.createCategory(
+                req.body
+            );
 
         return success(
             res,
-            "categories created successfully",
-            categories,
+            "Category created successfully",
+            category,
             201
         );
-
     } catch (error) {
         next(error);
     }
 };
 
-const updatecategories = async (req, res, next) => {
-    try {
+// ============================================================
+// UPDATE CATEGORY
+// ============================================================
 
-        const categories =
-            await categoriesService.updatecategories(
+const updateCategory = async (req, res, next) => {
+    try {
+        const category =
+            await categoriesService.updateCategory(
                 req.params.id,
                 req.body
             );
 
         return success(
             res,
-            "categories updated successfully",
-            categories
+            "Category updated successfully",
+            category
         );
-
     } catch (error) {
         next(error);
     }
 };
 
-const deletecategories = async (req, res, next) => {
-    try {
+// ============================================================
+// DELETE CATEGORY
+// ============================================================
 
-        await categoriesService.deletecategories(req.params.id);
+const deleteCategory = async (req, res, next) => {
+    try {
+        const result =
+            await categoriesService.deleteCategory(
+                req.params.id
+            );
 
         return success(
             res,
-            "categories deleted successfully"
+            "Category deleted successfully",
+            result
         );
+    } catch (error) {
+        next(error);
+    }
+};
 
+const updateCategoryStatus = async (req, res, next) => {
+    try {
+        const category =
+            await categoriesService.updateCategoryStatus(
+                req.params.id,
+                req.body.status
+            );
+
+        return success(
+            res,
+            "Category status updated successfully",
+            category
+        );
     } catch (error) {
         next(error);
     }
@@ -90,8 +126,9 @@ const deletecategories = async (req, res, next) => {
 
 module.exports = {
     getAllCategories,
-    getcategoriesById,
-    createcategories,
-    updatecategories,
-    deletecategories
+    getCategoryById,
+    createCategory,
+    updateCategory,
+    updateCategoryStatus,
+    deleteCategory
 };

@@ -397,7 +397,7 @@ const createOrder = async ({
 
 const getOrderById = async (orderId, sessionId) => {
 
- 
+
     const orderRows = await db.query(
         `SELECT
         o.id,
@@ -554,9 +554,566 @@ const getOrderHistory = async (sessionId) => {
 };
 
 
+// ADMIN ORDERS
+
+
+const getAdminOrders = async ({
+    search = "",
+    status = "",
+    orderMode = "",
+    orderType = "",
+    page = 1,
+    limit = 10
+}) => {
+
+    const currentPage = Math.max(
+        Number(page) || 1,
+        1
+    );
+
+    const currentLimit = Math.min(
+        Math.max(Number(limit) || 10, 1),
+        100
+    );
+
+    const offset =
+        (currentPage - 1) * currentLimit;
+
+    const conditions = [];
+    const params = [];
+
+    // --------------------------------------------------------
+    // SEARCH
+    // --------------------------------------------------------
+
+    if (search.trim()) {
+
+        const searchValue =
+            `%${search.trim()}%`;
+
+        conditions.push(`
+            (
+                o.order_number LIKE ?
+                OR c.name LIKE ?
+                OR c.mobile LIKE ?
+                OR CAST(rt.table_number AS CHAR) LIKE ?
+            )
+        `);
+
+        params.push(
+            searchValue,
+            searchValue,
+            searchValue,
+            searchValue
+        );
+    }
+
+
+    // --------------------------------------------------------
+    // STATUS
+    // --------------------------------------------------------
+
+    if (status) {
+
+        const allowedStatuses = [
+            "Pending",
+            "Preparing",
+            "Ready",
+            "Served",
+            "Cancelled"
+        ];
+
+        if (!allowedStatuses.includes(status)) {
+
+            throw new AppError(
+                "Invalid order status",
+                400
+            );
+        }
+
+        conditions.push(
+            "o.status = ?"
+        );
+
+        params.push(status);
+    }
+
+
+    // --------------------------------------------------------
+    // ORDER MODE
+    // --------------------------------------------------------
+
+    if (orderMode) {
+
+        if (
+            !["DineIn", "Takeaway"]
+                .includes(orderMode)
+        ) {
+
+            throw new AppError(
+                "Invalid order mode",
+                400
+            );
+        }
+
+        conditions.push(
+            "o.order_mode = ?"
+        );
+
+        params.push(orderMode);
+    }
+
+
+    // --------------------------------------------------------
+    // ORDER TYPE
+    // --------------------------------------------------------
+
+    if (orderType) {
+
+        if (
+            !["New", "Additional"]
+                .includes(orderType)
+        ) {
+
+            throw new AppError(
+                "Invalid order type",
+                400
+            );
+        }
+
+        conditions.push(
+            "o.order_type = ?"
+        );
+
+        params.push(orderType);
+    }
+
+
+    const whereClause =
+        conditions.length
+            ? `WHERE ${conditions.join(" AND ")}`
+            : "";
+
+
+    // --------------------------------------------------------
+    // TOTAL COUNT
+    // --------------------------------------------------------
+
+    const countRows = await db.query(
+        `
+            SELECT COUNT(*) AS total
+
+            FROM orders o
+
+            LEFT JOIN table_sessions ts
+                ON ts.id = o.session_id
+
+            LEFT JOIN customers c
+                ON c.id = ts.customer_id
+
+            LEFT JOIN restaurant_tables rt
+                ON rt.id = ts.table_id
+
+            ${whereClause}
+        `,
+        params
+    );
+
+
+    const total =
+        Number(countRows[0]?.total || 0);
+
+
+    // --------------------------------------------------------
+    // ORDERS
+    // --------------------------------------------------------
+
+  const orders = await db.query(
+    `
+        SELECT
+
+            o.id,
+            o.order_number,
+            o.session_id,
+            o.order_type,
+            o.order_mode,
+            o.status,
+            o.total,
+            o.notes,
+            o.estimated_ready_time,
+            o.preparing_at,
+            o.ready_at,
+            o.created_at,
+            o.updated_at,
+
+            ts.customer_id,
+            ts.table_id,
+
+            c.name AS customer_name,
+            c.mobile AS customer_mobile,
+
+            rt.table_number
+
+        FROM orders o
+
+        LEFT JOIN table_sessions ts
+            ON ts.id = o.session_id
+
+        LEFT JOIN customers c
+            ON c.id = ts.customer_id
+
+        LEFT JOIN restaurant_tables rt
+            ON rt.id = ts.table_id
+
+        ${whereClause}
+
+        ORDER BY o.created_at DESC
+
+        LIMIT ${currentLimit}
+        OFFSET ${offset}
+    `,
+    params
+);
+
+
+    // --------------------------------------------------------
+    // ORDER ITEMS
+    // --------------------------------------------------------
+
+    for (const order of orders) {
+
+        order.items = await db.query(
+            `
+                SELECT
+
+                    oi.id,
+                    oi.menu_item_id,
+                    m.name,
+                    oi.quantity,
+                    oi.price,
+                    oi.subtotal
+
+                FROM order_items oi
+
+                INNER JOIN menu_items m
+                    ON m.id = oi.menu_item_id
+
+                WHERE oi.order_id = ?
+
+                ORDER BY oi.id ASC
+            `,
+            [order.id]
+        );
+    }
+
+
+    return {
+        orders,
+
+        pagination: {
+            page: currentPage,
+            limit: currentLimit,
+            total,
+            totalPages:
+                Math.ceil(
+                    total / currentLimit
+                )
+        }
+    };
+};
+
+
+
+// ADMIN ORDER DETAILS
+
+
+const getAdminOrderById = async (
+    orderId
+) => {
+
+    const orders = await db.query(
+        `
+            SELECT
+
+                o.id,
+                o.order_number,
+                o.session_id,
+                o.order_type,
+                o.order_mode,
+                o.status,
+                o.total,
+                o.notes,
+                o.estimated_ready_time,
+                o.preparing_at,
+                o.ready_at,
+                o.created_at,
+                o.updated_at,
+
+                ts.customer_id,
+                ts.table_id,
+
+                c.name AS customer_name,
+                c.mobile AS customer_phone,
+
+                rt.table_number
+
+            FROM orders o
+
+            LEFT JOIN table_sessions ts
+                ON ts.id = o.session_id
+
+            LEFT JOIN customers c
+                ON c.id = ts.customer_id
+
+            LEFT JOIN restaurant_tables rt
+                ON rt.id = ts.table_id
+
+            WHERE o.id = ?
+
+            LIMIT 1
+        `,
+        [orderId]
+    );
+
+
+    if (!orders.length) {
+
+        throw new AppError(
+            "Order not found",
+            404
+        );
+    }
+
+
+    const order = orders[0];
+
+
+    order.items = await db.query(
+        `
+            SELECT
+
+                oi.id,
+                oi.menu_item_id,
+                m.name,
+                oi.quantity,
+                oi.price,
+                oi.subtotal
+
+            FROM order_items oi
+
+            INNER JOIN menu_items m
+                ON m.id = oi.menu_item_id
+
+            WHERE oi.order_id = ?
+
+            ORDER BY oi.id ASC
+        `,
+        [orderId]
+    );
+
+
+    return order;
+};
+
+const updateOrderStatus = async (orderId, status) => {
+
+    const allowedStatuses = [
+        "Pending",
+        "Preparing",
+        "Ready",
+        "Served",
+        "Cancelled"
+    ];
+
+    // ---------------------------------------------------------
+    // Validate status
+    // ---------------------------------------------------------
+
+    if (!allowedStatuses.includes(status)) {
+        throw new AppError(
+            "Invalid order status",
+            400
+        );
+    }
+
+
+    // ---------------------------------------------------------
+    // Get current order
+    // ---------------------------------------------------------
+
+    const orders = await db.query(
+        `SELECT
+            id,
+            session_id,
+            status
+         FROM orders
+         WHERE id = ?`,
+        [orderId]
+    );
+
+    if (!orders.length) {
+        throw new AppError(
+            "Order not found",
+            404
+        );
+    }
+
+
+    const currentOrder = orders[0];
+
+    const currentStatus = currentOrder.status;
+    const sessionId = currentOrder.session_id;
+
+
+    // ---------------------------------------------------------
+    // Prevent changing completed/cancelled orders
+    // ---------------------------------------------------------
+
+    if (
+        currentStatus === "Served" ||
+        currentStatus === "Cancelled"
+    ) {
+        throw new AppError(
+            `Order is already ${currentStatus}`,
+            400
+        );
+    }
+
+
+    // ---------------------------------------------------------
+    // Update order status
+    // ---------------------------------------------------------
+
+    if (status === "Preparing") {
+
+        await db.query(
+            `UPDATE orders
+             SET
+                status = ?,
+                preparing_at = COALESCE(
+                    preparing_at,
+                    CURRENT_TIMESTAMP
+                )
+             WHERE id = ?`,
+            [status, orderId]
+        );
+
+    } else if (status === "Ready") {
+
+        await db.query(
+            `UPDATE orders
+             SET
+                status = ?,
+                ready_at = CURRENT_TIMESTAMP
+             WHERE id = ?`,
+            [status, orderId]
+        );
+
+    } else {
+
+        await db.query(
+            `UPDATE orders
+             SET status = ?
+             WHERE id = ?`,
+            [status, orderId]
+        );
+    }
+
+
+    // ---------------------------------------------------------
+    // CLOSE TABLE SESSION
+    //
+    // Only when order becomes Served/Cancelled
+    // AND there are no other active orders in this session.
+    // ---------------------------------------------------------
+
+    if (
+        status === "Served" ||
+        status === "Cancelled"
+    ) {
+
+        const activeOrders = await db.query(
+            `SELECT
+                id
+             FROM orders
+             WHERE session_id = ?
+             AND status IN (
+                'Pending',
+                'Preparing',
+                'Ready'
+             )
+             LIMIT 1`,
+            [sessionId]
+        );
+
+
+        // -----------------------------------------------------
+        // No active orders remaining
+        // -----------------------------------------------------
+
+        if (activeOrders.length === 0) {
+
+            await db.query(
+                `UPDATE table_sessions
+                 SET
+                    is_active = 0,
+                    ended_at = CURRENT_TIMESTAMP
+                 WHERE id = ?
+                 AND is_active = 1`,
+                [sessionId]
+            );
+
+        }
+    }
+
+
+    // ---------------------------------------------------------
+    // Get updated order
+    // ---------------------------------------------------------
+
+    const updated = await db.query(
+        `SELECT
+            o.id,
+            o.order_number,
+            o.session_id,
+            o.order_type,
+            o.order_mode,
+            o.status,
+            o.total,
+            o.notes,
+            o.estimated_ready_time,
+            o.created_at,
+            o.updated_at,
+            rt.table_number
+         FROM orders o
+         LEFT JOIN table_sessions ts
+            ON ts.id = o.session_id
+         LEFT JOIN restaurant_tables rt
+            ON rt.id = ts.table_id
+         WHERE o.id = ?`,
+        [orderId]
+    );
+
+
+    if (!updated.length) {
+        throw new AppError(
+            "Updated order could not be found",
+            500
+        );
+    }
+
+
+    return updated[0];
+};
+
 module.exports = {
     createOrder,
     getCurrentOrders,
     getOrderById,
-    getOrderHistory
+    getOrderHistory,
+    // ADMIN ROUTES 
+    getAdminOrders,
+    getAdminOrderById,
+    updateOrderStatus
+
 };

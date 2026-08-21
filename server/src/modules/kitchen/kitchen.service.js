@@ -1,5 +1,7 @@
 const db = require("../../utils/db");
+const orderService = require("../orders/order.service");
 const AppError = require("../../utils/AppError");
+
 
 const getKitchenOrders = async () => {
     const orders = await db.query(
@@ -255,5 +257,5 @@ const updateOrderStatus = async (orderId, status) => {
 
 module.exports = {
     getKitchenOrders,
-    updateOrderStatus
+    updateOrderStatus: orderService.updateOrderStatus
 };
