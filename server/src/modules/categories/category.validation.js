@@ -1,20 +1,23 @@
 const { body, param } = require("express-validator");
 
-
+// ============================================================
 // CATEGORY ID VALIDATION
-
+// ============================================================
 
 const categoryIdValidation = [
+
     param("id")
         .isInt({ min: 1 })
         .withMessage("Invalid category ID")
+
 ];
 
-
+// ============================================================
 // CREATE CATEGORY VALIDATION
-
+// ============================================================
 
 const createCategoryValidation = [
+
     body("name")
         .trim()
         .notEmpty()
@@ -24,19 +27,18 @@ const createCategoryValidation = [
             "Category name cannot exceed 100 characters"
         ),
 
-    body("image")
-        .optional({
-            nullable: true
-        })
-        .isString()
+    body("status")
+        .optional()
+        .isIn(["0", "1", 0, 1, true, false, "true", "false"])
         .withMessage(
-            "Category image must be a string"
+            "Category status must be valid"
         )
+
 ];
 
-
+// ============================================================
 // UPDATE CATEGORY VALIDATION
-
+// ============================================================
 
 const updateCategoryValidation = [
     param("id")
@@ -53,54 +55,36 @@ const updateCategoryValidation = [
         .isLength({ max: 100 })
         .withMessage(
             "Category name cannot exceed 100 characters"
-        ),
-
-    body("image")
-        .optional({
-            nullable: true
-        })
-        .isString()
-        .withMessage(
-            "Category image must be a string"
         )
 ];
 
-
+// ============================================================
 // UPDATE CATEGORY STATUS VALIDATION
-
-
-const updateCategoryStatusValidation = [
-    param("id")
-        .isInt({ min: 1 })
-        .withMessage("Invalid category ID"),
-
-    body("status")
-        .notEmpty()
-        .withMessage("Category status is required")
-        .isIn([0, 1, "0", "1"])
-        .withMessage(
-            "Category status must be 0 or 1"
-        )
-];
+// ============================================================
 
 const categoryStatusValidation = [
+
     param("id")
         .isInt({ min: 1 })
         .withMessage("Invalid category ID"),
 
     body("status")
         .isBoolean()
-        .withMessage("Status must be true or false")
+        .withMessage(
+            "Status must be true or false"
+        )
+
 ];
 
-
+// ============================================================
 // EXPORTS
-
+// ============================================================
 
 module.exports = {
+
     createCategoryValidation,
     updateCategoryValidation,
-    updateCategoryStatusValidation,
-    categoryIdValidation,   
+    categoryIdValidation,
     categoryStatusValidation
+
 };

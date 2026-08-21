@@ -10,77 +10,56 @@ const notFound = require("./middleware/notFound");
 
 const app = express();
 
-
 // SECURITY
-
-
-app.use(helmet());
-
+app.use(
+  helmet({
+    crossOriginResourcePolicy: {
+      policy: "cross-origin",
+    },
+  }),
+);
 
 // CORS
 
-
 app.use(
-    cors({
-        origin:
-            process.env.CLIENT_URL ||
-            "http://localhost:5173",
-        credentials: true
-    })
+  cors({
+    origin: process.env.CLIENT_URL || "http://localhost:5173",
+    credentials: true,
+  }),
 );
-
 
 // STATIC UPLOADS
 
-
-app.use(
-    "/uploads",
-    express.static(
-        path.join(
-            process.cwd(),
-            "uploads"
-        )
-    )
-);
-
+app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
 // BODY PARSERS
-
 
 app.use(express.json());
 
 app.use(
-    express.urlencoded({
-        extended: true
-    })
+  express.urlencoded({
+    extended: true,
+  }),
 );
-
 
 // HEALTH CHECK
 
-
 app.get("/", (req, res) => {
-    res.json({
-        success: true,
-        message: "QuickServe API Running"
-    });
+  res.json({
+    success: true,
+    message: "QuickServe API Running",
+  });
 });
-
 
 // ALL API ROUTES
 
-
 app.use("/api", routes);
-
 
 // 404
 
-
 app.use(notFound);
 
-
 // ERROR HANDLER
-
 
 app.use(errorHandler);
 

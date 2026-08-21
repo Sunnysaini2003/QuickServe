@@ -1,9 +1,9 @@
 const categoriesService = require("./category.service");
 const { success } = require("../../utils/apiResponse");
 
-// ============================================================
+
 // GET ALL CATEGORIES
-// ============================================================
+
 
 const getAllCategories = async (req, res, next) => {
     try {
@@ -20,9 +20,9 @@ const getAllCategories = async (req, res, next) => {
     }
 };
 
-// ============================================================
+
 // GET CATEGORY BY ID
-// ============================================================
+
 
 const getCategoryById = async (req, res, next) => {
     try {
@@ -41,16 +41,24 @@ const getCategoryById = async (req, res, next) => {
     }
 };
 
-// ============================================================
+
 // CREATE CATEGORY
-// ============================================================
+
 
 const createCategory = async (req, res, next) => {
+
     try {
+
         const category =
-            await categoriesService.createCategory(
-                req.body
-            );
+            await categoriesService.createCategory({
+
+                ...req.body,
+
+                image: req.file
+                    ? `/uploads/categories/${req.file.filename}`
+                    : null
+
+            });
 
         return success(
             res,
@@ -58,21 +66,33 @@ const createCategory = async (req, res, next) => {
             category,
             201
         );
+
     } catch (error) {
+
         next(error);
+
     }
+
 };
 
-// ============================================================
 // UPDATE CATEGORY
-// ============================================================
 
 const updateCategory = async (req, res, next) => {
     try {
+        const updateData = {
+            ...req.body,
+        };
+
+        // If a new image was uploaded
+        if (req.file) {
+            updateData.image =
+                `/uploads/categories/${req.file.filename}`;
+        }
+
         const category =
             await categoriesService.updateCategory(
                 req.params.id,
-                req.body
+                updateData
             );
 
         return success(
@@ -80,14 +100,14 @@ const updateCategory = async (req, res, next) => {
             "Category updated successfully",
             category
         );
+
     } catch (error) {
         next(error);
     }
 };
 
-// ============================================================
 // DELETE CATEGORY
-// ============================================================
+
 
 const deleteCategory = async (req, res, next) => {
     try {
