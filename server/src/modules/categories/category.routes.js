@@ -21,31 +21,33 @@ const {
     categoryStatusValidation
 } = require("./category.validation");
 
-// ============================================================
-// GET ALL
-// ============================================================
+
+// PUBLIC CUSTOMER ROUTES
+
+// GET ALL CATEGORIES
+// Customers need this to display the menu.
 
 router.get(
     "/",
-    authenticate,
     categoriesController.getAllCategories
 );
 
-// ============================================================
-// GET BY ID
-// ============================================================
+
+// GET CATEGORY BY ID
+// Public because customers may need category information.
 
 router.get(
     "/:id",
-    authenticate,
     categoryIdValidation,
     validate,
     categoriesController.getCategoryById
 );
 
-// ============================================================
-// CREATE
-// ============================================================
+
+// ADMIN ROUTES
+
+
+// CREATE CATEGORY
 
 router.post(
     "/",
@@ -56,9 +58,8 @@ router.post(
     categoriesController.createCategory
 );
 
-// ============================================================
-// UPDATE
-// ============================================================
+
+// UPDATE CATEGORY
 
 router.put(
     "/:id",
@@ -69,9 +70,8 @@ router.put(
     categoriesController.updateCategory
 );
 
-// ============================================================
-// STATUS
-// ============================================================
+
+// UPDATE CATEGORY STATUS
 
 router.patch(
     "/:id/status",
@@ -81,9 +81,8 @@ router.patch(
     categoriesController.updateCategoryStatus
 );
 
-// ============================================================
-// DELETE
-// ============================================================
+
+// DELETE CATEGORY
 
 router.delete(
     "/:id",
@@ -92,5 +91,6 @@ router.delete(
     validate,
     categoriesController.deleteCategory
 );
+
 
 module.exports = router;

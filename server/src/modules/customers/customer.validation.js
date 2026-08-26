@@ -23,6 +23,66 @@ const createCustomerSessionValidation = [
         .withMessage("Enter a valid Indian mobile number")
 ];
 
+const registerCustomerValidation = [
+
+    body("name")
+        .trim()
+        .notEmpty()
+        .withMessage("Name is required")
+        .isLength({
+            min: 2,
+            max: 120
+        })
+        .withMessage(
+            "Name must be between 2 and 120 characters"
+        ),
+
+    body("mobile")
+        .trim()
+        .matches(/^[6-9]\d{9}$/)
+        .withMessage(
+            "Enter a valid Indian mobile number"
+        ),
+
+    body("email")
+        .trim()
+        .isEmail()
+        .withMessage(
+            "Enter a valid email address"
+        )
+        .normalizeEmail(),
+
+    body("password")
+        .isLength({
+            min: 6,
+            max: 100
+        })
+        .withMessage(
+            "Password must be between 6 and 100 characters"
+        )
+
+];
+
+
+const loginCustomerValidation = [
+
+    body("mobile")
+        .trim()
+        .matches(/^[6-9]\d{9}$/)
+        .withMessage(
+            "Enter a valid Indian mobile number"
+        ),
+
+    body("password")
+        .notEmpty()
+        .withMessage(
+            "Password is required"
+        )
+
+];
+
 module.exports = {
-    createCustomerSessionValidation
+    createCustomerSessionValidation,
+    registerCustomerValidation,
+    loginCustomerValidation
 };

@@ -5,17 +5,17 @@ const db = require("../../config/database");
 | Dashboard Service
 |--------------------------------------------------------------------------
 |
-| This service is responsible for preparing all data required by the
-| Admin Dashboard.
+| Provides all data required by the Admin Dashboard:
 |
-| It provides:
-| - Order statistics
-| - Revenue statistics
-| - Kitchen order statistics
-| - Table occupancy statistics
-| - Customer statistics
-| - Completed order statistics
-| - Sales chart data
+| - Total orders
+| - Revenue
+| - Pending / active kitchen orders
+| - Occupied tables
+| - Available tables
+| - Total tables
+| - Customers
+| - Completed orders
+| - Sales overview
 | - Recent orders
 |
 |--------------------------------------------------------------------------
@@ -24,57 +24,39 @@ const db = require("../../config/database");
 
 /*
 |--------------------------------------------------------------------------
-| Get Date Condition
+| GET DATE CONDITION
 |--------------------------------------------------------------------------
-|
-| Creates the SQL date condition according to the selected dashboard
-| period.
 |
 | Supported periods:
 |
 | Today
-|     -> Orders created today
-|
 | This Week
-|     -> Last 7 days including today
-|
 | This Month
-|     -> Current calendar month
-|
-| The column name is passed as an argument because different queries
-| may use different table aliases.
 |
 |--------------------------------------------------------------------------
 */
 
-const getDateCondition = (period, column = "created_at") => {
+const getDateCondition = (
+    period,
+    column = "created_at"
+) => {
 
     switch (period) {
-
-        /*
-        |--------------------------------------------------------------------------
-        | This Week
-        |--------------------------------------------------------------------------
-        | Include today and the previous 6 days.
-        |--------------------------------------------------------------------------
-        */
 
         case "This Week":
 
             return `
-                ${column} >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
-                AND ${column} < DATE_ADD(CURDATE(), INTERVAL 1 DAY)
+                ${column} >= DATE_SUB(
+                    CURDATE(),
+                    INTERVAL 6 DAY
+                )
+
+                AND ${column} < DATE_ADD(
+                    CURDATE(),
+                    INTERVAL 1 DAY
+                )
             `;
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | This Month
-        |--------------------------------------------------------------------------
-        | Start from the first day of the current month and stop before
-        | the first day of the next month.
-        |--------------------------------------------------------------------------
-        */
 
         case "This Month":
 
@@ -94,20 +76,13 @@ const getDateCondition = (period, column = "created_at") => {
             `;
 
 
-        /*
-        |--------------------------------------------------------------------------
-        | Today
-        |--------------------------------------------------------------------------
-        | Default period.
-        |--------------------------------------------------------------------------
-        */
-
         case "Today":
 
         default:
 
             return `
                 ${column} >= CURDATE()
+
                 AND ${column} < DATE_ADD(
                     CURDATE(),
                     INTERVAL 1 DAY
@@ -119,20 +94,17 @@ const getDateCondition = (period, column = "created_at") => {
 
 /*
 |--------------------------------------------------------------------------
-| Get Dashboard Stats
-|--------------------------------------------------------------------------
-|
-| Returns all numbers displayed in the dashboard statistic cards and
-| Quick Overview section.
-|
+| GET DASHBOARD STATS
 |--------------------------------------------------------------------------
 */
 
-const getDashboardStats = async (period = "Today") => {
+const getDashboardStats = async (
+    period = "Today"
+) => {
 
     /*
     |--------------------------------------------------------------------------
-    | Create the date filter for order-based statistics.
+    | Order date condition
     |--------------------------------------------------------------------------
     */
 
@@ -145,253 +117,263 @@ const getDashboardStats = async (period = "Today") => {
 
     /*
     |--------------------------------------------------------------------------
-    | Get all dashboard statistics in one database query.
+    | Dashboard statistics
     |--------------------------------------------------------------------------
     */
 
-    const [[stats]] = await db.query(`
+    const [[stats]] =
+        await db.query(`
 
-        SELECT
+            SELECT
 
-            /*
-            |--------------------------------------------------------------------------
-            | TOTAL ORDERS
-            |--------------------------------------------------------------------------
-            | Number of orders created during the selected period.
-            |--------------------------------------------------------------------------
-            */
+                /*
+                |--------------------------------------------------------------------------
+                | TOTAL ORDERS
+                |--------------------------------------------------------------------------
+                */
 
-            (
-                SELECT COUNT(*)
+                (
+                    SELECT COUNT(*)
 
-                FROM orders o
+                    FROM orders o
 
-                WHERE ${dateCondition}
+                    WHERE ${dateCondition}
 
-            ) AS orders,
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | TOTAL REVENUE
-            |--------------------------------------------------------------------------
-            | Adds the total of all non-cancelled orders.
-            |
-            | Cancelled orders are intentionally excluded from revenue.
-            |--------------------------------------------------------------------------
-            */
-
-            (
-                SELECT COALESCE(
-                    SUM(o.total),
-                    0
-                )
-
-                FROM orders o
-
-                WHERE ${dateCondition}
-
-                AND o.status <> 'Cancelled'
-
-            ) AS revenue,
+                ) AS orders,
 
 
-            /*
-            |--------------------------------------------------------------------------
-            | ACTIVE KITCHEN ORDERS
-            |--------------------------------------------------------------------------
-            | Orders that still require kitchen action.
-            |
-            | These orders are:
-            | Pending
-            | Preparing
-            | Ready
-            |--------------------------------------------------------------------------
-            */
+                /*
+                |--------------------------------------------------------------------------
+                | REVENUE
+                |--------------------------------------------------------------------------
+                |
+                | Cancelled orders are excluded.
+                |
+                */
 
-            (
-                SELECT COUNT(*)
+                (
+                    SELECT COALESCE(
+                        SUM(o.total),
+                        0
+                    )
 
-                FROM orders o
+                    FROM orders o
 
-                WHERE o.status IN (
-                    'Pending',
-                    'Preparing',
-                    'Ready'
-                )
+                    WHERE ${dateCondition}
 
-            ) AS pending_orders,
+                    AND o.status <> 'Cancelled'
+
+                ) AS revenue,
 
 
-            /*
-            |--------------------------------------------------------------------------
-            | OCCUPIED TABLES
-            |--------------------------------------------------------------------------
-            |
-            | A table is considered occupied only when:
-            |
-            | 1. It has an active session.
-            | 2. The session is a DineIn session.
-            | 3. The session belongs to a valid table.
-            | 4. The table itself is active.
-            | 5. At least one order for that session is still active.
-            |
-            | Active order statuses:
-            |
-            | Pending
-            | Preparing
-            | Ready
-            |
-            | This prevents a table from being shown as occupied when all
-            | of its orders have already been Served or Cancelled.
-            |--------------------------------------------------------------------------
-            */
+                /*
+                |--------------------------------------------------------------------------
+                | PENDING / ACTIVE ORDERS
+                |--------------------------------------------------------------------------
+                |
+                | These are orders which are still part of the
+                | active kitchen workflow:
+                |
+                | Pending
+                | Preparing
+                | Ready
+                |
+                | IMPORTANT:
+                |
+                | This is now limited to the selected dashboard
+                | period.
+                |
+                */
 
-            (
-                SELECT COUNT(DISTINCT ts.table_id)
+                (
+                    SELECT COUNT(*)
 
-                FROM table_sessions ts
+                    FROM orders o
 
-                INNER JOIN restaurant_tables rt
-                    ON rt.id = ts.table_id
+                    WHERE ${dateCondition}
 
-                INNER JOIN orders o
-                    ON o.session_id = ts.id
+                    AND o.status IN (
+                        'Pending',
+                        'Preparing',
+                        'Ready'
+                    )
 
-                WHERE ts.is_active = 1
-
-                AND ts.session_type = 'DineIn'
-
-                AND ts.table_id IS NOT NULL
-
-                AND rt.status = 1
-
-                AND o.status IN (
-                    'Pending',
-                    'Preparing',
-                    'Ready'
-                )
-
-            ) AS active_tables,
+                ) AS pending_orders,
 
 
-            /*
-            |--------------------------------------------------------------------------
-            | TOTAL TABLES
-            |--------------------------------------------------------------------------
-            |
-            | Counts all active restaurant tables.
-            |
-            | Inactive tables are not included.
-            |--------------------------------------------------------------------------
-            */
+                /*
+                |--------------------------------------------------------------------------
+                | OCCUPIED TABLES
+                |--------------------------------------------------------------------------
+                |
+                | A table is occupied when:
+                |
+                | 1. It belongs to an active restaurant table.
+                | 2. It has a valid table session.
+                | 3. The session is active.
+                | 4. The session is DineIn.
+                | 5. The session has at least one active order.
+                |
+                | We count DISTINCT table_id so that:
+                |
+                | One table
+                |   -> Order 1
+                |   -> Order 2
+                |   -> Order 3
+                |
+                | still counts as:
+                |
+                | 1 occupied table.
+                |
+                */
 
-            (
-                SELECT COUNT(*)
+                (
+                    SELECT COUNT(
+                        DISTINCT ts.table_id
+                    )
 
-                FROM restaurant_tables rt
+                    FROM table_sessions ts
 
-                WHERE rt.status = 1
+                    INNER JOIN restaurant_tables rt
+                        ON rt.id = ts.table_id
 
-            ) AS total_tables,
+                    INNER JOIN orders o
+                        ON o.session_id = ts.id
 
+                    WHERE ts.is_active = 1
 
-            /*
-            |--------------------------------------------------------------------------
-            | CUSTOMERS
-            |--------------------------------------------------------------------------
-            |
-            | Counts unique customers who placed an order during the
-            | selected period.
-            |
-            | Walk-in orders without a customer_id are ignored.
-            |--------------------------------------------------------------------------
-            */
+                    AND ts.session_type = 'DineIn'
 
-            (
-                SELECT COUNT(
-                    DISTINCT o.customer_id
-                )
+                    AND ts.table_id IS NOT NULL
 
-                FROM orders o
+                    AND rt.status = 1
 
-                WHERE ${dateCondition}
+                    AND o.status IN (
+                        'Pending',
+                        'Preparing',
+                        'Ready'
+                    )
 
-                AND o.customer_id IS NOT NULL
-
-            ) AS customers,
+                ) AS active_tables,
 
 
-            /*
-            |--------------------------------------------------------------------------
-            | COMPLETED ORDERS
-            |--------------------------------------------------------------------------
-            |
-            | An order is considered completed when its status is Served.
-            |--------------------------------------------------------------------------
-            */
+                /*
+                |--------------------------------------------------------------------------
+                | TOTAL TABLES
+                |--------------------------------------------------------------------------
+                */
 
-            (
-                SELECT COUNT(*)
+                (
+                    SELECT COUNT(*)
 
-                FROM orders o
+                    FROM restaurant_tables rt
 
-                WHERE ${dateCondition}
+                    WHERE rt.status = 1
 
-                AND o.status = 'Served'
+                ) AS total_tables,
 
-            ) AS completed_orders
 
-    `);
+                /*
+                |--------------------------------------------------------------------------
+                | CUSTOMERS
+                |--------------------------------------------------------------------------
+                |
+                | Unique customers who placed an order
+                | during the selected period.
+                |
+                */
+
+                (
+                    SELECT COUNT(
+                        DISTINCT o.customer_id
+                    )
+
+                    FROM orders o
+
+                    WHERE ${dateCondition}
+
+                    AND o.customer_id IS NOT NULL
+
+                ) AS customers,
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | COMPLETED ORDERS
+                |--------------------------------------------------------------------------
+                |
+                | Served orders are completed.
+                |
+                */
+
+                (
+                    SELECT COUNT(*)
+
+                    FROM orders o
+
+                    WHERE ${dateCondition}
+
+                    AND o.status = 'Served'
+
+                ) AS completed_orders
+
+        `);
 
 
     /*
     |--------------------------------------------------------------------------
-    | Convert database values into JavaScript numbers.
+    | Convert values to numbers
     |--------------------------------------------------------------------------
     */
 
     const totalTables =
-        Number(stats.total_tables || 0);
+        Number(
+            stats?.total_tables || 0
+        );
+
 
     const activeTables =
-        Number(stats.active_tables || 0);
+        Number(
+            stats?.active_tables || 0
+        );
 
 
     /*
     |--------------------------------------------------------------------------
-    | Calculate available tables.
-    |--------------------------------------------------------------------------
-    |
-    | Available tables = Total tables - Occupied tables
-    |
-    | Math.max() prevents the result from becoming negative.
+    | Available tables
     |--------------------------------------------------------------------------
     */
 
     const availableTables =
         Math.max(
-            totalTables - activeTables,
+            totalTables -
+            activeTables,
             0
         );
 
 
     /*
     |--------------------------------------------------------------------------
-    | Return dashboard statistics.
+    | Return stats
     |--------------------------------------------------------------------------
     */
 
     return {
 
         orders:
-            Number(stats.orders || 0),
+            Number(
+                stats?.orders || 0
+            ),
 
         revenue:
-            Number(stats.revenue || 0),
+            Number(
+                stats?.revenue || 0
+            ),
 
         pending_orders:
-            Number(stats.pending_orders || 0),
+            Number(
+                stats?.pending_orders || 0
+            ),
 
         active_tables:
             activeTables,
@@ -403,33 +385,28 @@ const getDashboardStats = async (period = "Today") => {
             availableTables,
 
         customers:
-            Number(stats.customers || 0),
+            Number(
+                stats?.customers || 0
+            ),
 
         completed_orders:
-            Number(stats.completed_orders || 0)
+            Number(
+                stats?.completed_orders || 0
+            )
+
     };
 };
 
 
 /*
 |--------------------------------------------------------------------------
-| Sales Overview
-|--------------------------------------------------------------------------
-|
-| Provides the revenue data used by the Sales Overview chart.
-|
-| The same period selected on the dashboard is used here.
-|
+| SALES OVERVIEW
 |--------------------------------------------------------------------------
 */
 
-const getSalesOverview = async (period = "Today") => {
-
-    /*
-    |--------------------------------------------------------------------------
-    | Create the date condition.
-    |--------------------------------------------------------------------------
-    */
+const getSalesOverview = async (
+    period = "Today"
+) => {
 
     const dateCondition =
         getDateCondition(
@@ -438,181 +415,153 @@ const getSalesOverview = async (period = "Today") => {
         );
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | Get revenue grouped by date.
-    |--------------------------------------------------------------------------
-    |
-    | Cancelled orders are excluded.
-    |--------------------------------------------------------------------------
-    */
+    const [sales] =
+        await db.query(`
 
-    const [sales] = await db.query(`
+            SELECT
 
-        SELECT
+                DATE(created_at) AS date,
 
-            DATE(created_at) AS date,
+                COALESCE(
+                    SUM(total),
+                    0
+                ) AS revenue
 
-            COALESCE(
-                SUM(total),
-                0
-            ) AS revenue
+            FROM orders
 
-        FROM orders
+            WHERE ${dateCondition}
 
-        WHERE ${dateCondition}
+            AND status <> 'Cancelled'
 
-        AND status <> 'Cancelled'
+            GROUP BY DATE(created_at)
 
-        GROUP BY DATE(created_at)
+            ORDER BY date ASC
 
-        ORDER BY date ASC
-
-    `);
+        `);
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | Convert database values into JavaScript-friendly values.
-    |--------------------------------------------------------------------------
-    */
+    return sales.map(
+        (item) => ({
 
-    return sales.map((item) => ({
+            date:
+                item.date,
 
-        date:
-            item.date,
+            revenue:
+                Number(
+                    item.revenue || 0
+                )
 
-        revenue:
-            Number(item.revenue || 0)
-
-    }));
+        })
+    );
 };
 
 
 /*
 |--------------------------------------------------------------------------
-| Recent Orders
-|--------------------------------------------------------------------------
-|
-| Returns the latest 10 orders for the Recent Orders table.
-|
+| RECENT ORDERS
 |--------------------------------------------------------------------------
 */
 
 const getRecentOrders = async () => {
 
-    /*
-    |--------------------------------------------------------------------------
-    | Get the latest 10 orders.
-    |--------------------------------------------------------------------------
-    */
+    const [orders] =
+        await db.query(`
 
-    const [orders] = await db.query(`
+            SELECT
 
-        SELECT
+                o.id,
 
-            o.id,
+                o.order_number,
 
-            o.order_number,
+                o.order_mode,
 
-            o.order_mode,
+                o.order_type,
 
-            o.order_type,
+                o.status,
 
-            o.status,
+                o.total,
 
-            o.total,
+                o.created_at,
 
-            o.created_at,
+                c.name AS customer_name
 
-            c.name AS customer_name
+            FROM orders o
 
-        FROM orders o
+            LEFT JOIN customers c
+                ON c.id = o.customer_id
 
-        LEFT JOIN customers c
-            ON c.id = o.customer_id
+            ORDER BY
+                o.created_at DESC
 
-        ORDER BY
-            o.created_at DESC
+            LIMIT 10
 
-        LIMIT 10
-
-    `);
+        `);
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | Format the database result for the frontend.
-    |--------------------------------------------------------------------------
-    */
+    return orders.map(
+        (order) => ({
 
-    return orders.map((order) => ({
+            id:
+                order.id,
 
-        id:
-            order.id,
+            order_number:
+                order.order_number,
 
-        order_number:
-            order.order_number,
+            customer:
+                order.customer_name ||
+                "Walk-in Customer",
 
-        customer:
-            order.customer_name ||
-            "Walk-in Customer",
+            type:
+                order.order_mode,
 
-        type:
-            order.order_mode,
+            amount:
+                Number(
+                    order.total || 0
+                ),
 
-        amount:
-            Number(order.total || 0),
+            status:
+                order.status,
 
-        status:
-            order.status,
+            created_at:
+                order.created_at
 
-        created_at:
-            order.created_at
-
-    }));
+        })
+    );
 };
 
 
 /*
 |--------------------------------------------------------------------------
-| Complete Dashboard
-|--------------------------------------------------------------------------
-|
-| Combines:
-|
-| - Dashboard statistics
-| - Sales overview
-| - Recent orders
-|
-| Promise.all() allows all three database operations to run together
-| instead of waiting for each one individually.
-|
+| GET COMPLETE DASHBOARD
 |--------------------------------------------------------------------------
 */
 
-const getDashboard = async (period = "Today") => {
+const getDashboard = async (
+    period = "Today"
+) => {
 
     /*
     |--------------------------------------------------------------------------
-    | Only allow supported dashboard periods.
+    | Validate period
     |--------------------------------------------------------------------------
     */
 
     const allowedPeriods = [
+
         "Today",
+
         "This Week",
+
         "This Month"
+
     ];
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | If an invalid period is supplied, fall back to Today.
-    |--------------------------------------------------------------------------
-    */
-
-    if (!allowedPeriods.includes(period)) {
+    if (
+        !allowedPeriods.includes(
+            period
+        )
+    ) {
 
         period = "Today";
 
@@ -621,7 +570,7 @@ const getDashboard = async (period = "Today") => {
 
     /*
     |--------------------------------------------------------------------------
-    | Load all dashboard sections.
+    | Load dashboard sections
     |--------------------------------------------------------------------------
     */
 
@@ -631,9 +580,13 @@ const getDashboard = async (period = "Today") => {
         recentOrders
     ] = await Promise.all([
 
-        getDashboardStats(period),
+        getDashboardStats(
+            period
+        ),
 
-        getSalesOverview(period),
+        getSalesOverview(
+            period
+        ),
 
         getRecentOrders()
 
@@ -642,7 +595,7 @@ const getDashboard = async (period = "Today") => {
 
     /*
     |--------------------------------------------------------------------------
-    | Return the complete dashboard response.
+    | Return dashboard
     |--------------------------------------------------------------------------
     */
 
@@ -663,7 +616,7 @@ const getDashboard = async (period = "Today") => {
 
 /*
 |--------------------------------------------------------------------------
-| Export Dashboard Services
+| EXPORTS
 |--------------------------------------------------------------------------
 */
 

@@ -5,6 +5,7 @@ const db = require("../../utils/db");
 const AppError = require("../../utils/AppError");
 const env = require("../../config/env");
 const crypto = require("crypto");
+const bcrypt = require("bcryptjs");
 
 
 const createCustomerSession = async ({
@@ -267,8 +268,315 @@ const createTakeawaySession = async ({ name, mobile }) => {
     };
 };
 
+const registerCustomer = async ({
+    name,
+    mobile,
+    email,
+    password
+}) => {
+
+    name = String(name || "").trim();
+
+    mobile = String(mobile || "")
+        .replace(/\D/g, "")
+        .slice(0, 10);
+
+    email = String(email || "")
+        .trim()
+        .toLowerCase();
+
+    password = String(password || "");
+
+    if (!name) {
+        throw new AppError(
+            "Name is required",
+            400
+        );
+    }
+
+    if (!/^[6-9]\d{9}$/.test(mobile)) {
+        throw new AppError(
+            "Enter a valid Indian mobile number",
+            400
+        );
+    }
+
+    if (
+        !email ||
+        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+    ) {
+        throw new AppError(
+            "Enter a valid email address",
+            400
+        );
+    }
+
+    if (password.length < 6) {
+        throw new AppError(
+            "Password must be at least 6 characters",
+            400
+        );
+    }
+
+
+    // ----------------------------------------------------
+    // CHECK MOBILE
+    // ----------------------------------------------------
+
+    const existingMobile =
+        await db.query(
+            `
+            SELECT id
+            FROM customers
+            WHERE mobile = ?
+            LIMIT 1
+            `,
+            [mobile]
+        );
+
+    if (existingMobile.length) {
+        throw new AppError(
+            "An account with this mobile number already exists",
+            409
+        );
+    }
+
+
+    // ----------------------------------------------------
+    // CHECK EMAIL
+    // ----------------------------------------------------
+
+    const existingEmail =
+        await db.query(
+            `
+            SELECT id
+            FROM customers
+            WHERE email = ?
+            LIMIT 1
+            `,
+            [email]
+        );
+
+    if (existingEmail.length) {
+        throw new AppError(
+            "An account with this email already exists",
+            409
+        );
+    }
+
+
+    // ----------------------------------------------------
+    // HASH PASSWORD
+    // ----------------------------------------------------
+
+    const passwordHash =
+        await bcrypt.hash(
+            password,
+            12
+        );
+
+
+    // ----------------------------------------------------
+    // CREATE CUSTOMER
+    // ----------------------------------------------------
+
+    const result =
+        await db.query(
+            `
+            INSERT INTO customers
+            (
+                name,
+                mobile,
+                email,
+                password_hash,
+                is_active
+            )
+            VALUES (?, ?, ?, ?, 1)
+            `,
+            [
+                name,
+                mobile,
+                email,
+                passwordHash
+            ]
+        );
+
+
+    const customerId =
+        result.insertId;
+
+
+    // ----------------------------------------------------
+    // CUSTOMER ACCOUNT TOKEN
+    // ----------------------------------------------------
+
+    const token =
+        jwt.sign(
+            {
+                customerId,
+                role: "customer"
+            },
+            env.CUSTOMER_JWT_SECRET,
+            {
+                expiresIn: "30d"
+            }
+        );
+
+
+    return {
+
+        customer: {
+            id: customerId,
+            name,
+            mobile,
+            email
+        },
+
+        token
+
+    };
+};
+
+
+const loginCustomer = async ({
+    mobile,
+    password
+}) => {
+
+    mobile = String(mobile || "")
+        .replace(/\D/g, "")
+        .slice(0, 10);
+
+    password = String(password || "");
+
+
+    if (!/^[6-9]\d{9}$/.test(mobile)) {
+        throw new AppError(
+            "Enter a valid Indian mobile number",
+            400
+        );
+    }
+
+
+    if (!password) {
+        throw new AppError(
+            "Password is required",
+            400
+        );
+    }
+
+
+    const customers =
+        await db.query(
+            `
+            SELECT
+                id,
+                name,
+                mobile,
+                email,
+                password_hash,
+                is_active
+            FROM customers
+            WHERE mobile = ?
+            LIMIT 1
+            `,
+            [mobile]
+        );
+
+
+    if (!customers.length) {
+        throw new AppError(
+            "Invalid mobile number or password",
+            401
+        );
+    }
+
+
+    const customer =
+        customers[0];
+
+
+    if (!customer.is_active) {
+        throw new AppError(
+            "Your account is inactive",
+            403
+        );
+    }
+
+
+    if (!customer.password_hash) {
+        throw new AppError(
+            "This account does not have a password. Please create an account.",
+            400
+        );
+    }
+
+
+    const passwordValid =
+        await bcrypt.compare(
+            password,
+            customer.password_hash
+        );
+
+
+    if (!passwordValid) {
+        throw new AppError(
+            "Invalid mobile number or password",
+            401
+        );
+    }
+
+
+    await db.query(
+        `
+        UPDATE customers
+        SET last_login_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+        `,
+        [customer.id]
+    );
+
+
+    const token =
+        jwt.sign(
+            {
+                customerId:
+                    customer.id,
+
+                role:
+                    "customer"
+            },
+            env.CUSTOMER_JWT_SECRET,
+            {
+                expiresIn: "30d"
+            }
+        );
+
+
+    return {
+
+        customer: {
+            id:
+                customer.id,
+
+            name:
+                customer.name,
+
+            mobile:
+                customer.mobile,
+
+            email:
+                customer.email
+        },
+
+        token
+
+    };
+};
 
 module.exports = {
     createCustomerSession,
-    createTakeawaySession
+    createTakeawaySession,
+    registerCustomer,
+    loginCustomer
 };

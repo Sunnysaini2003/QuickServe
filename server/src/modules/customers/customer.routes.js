@@ -12,9 +12,29 @@ const validate =
     require("../../middleware/validate");
 
 const {
-    createCustomerSessionValidation
+    createCustomerSessionValidation,
+    registerCustomerValidation,
+    loginCustomerValidation
 } = require("./customer.validation");
 
+
+// CUSTOMER ACCOUNT
+router.post(
+    "/register",
+    registerCustomerValidation,
+    validate,
+    customerController.registerCustomer
+);
+
+
+router.post(
+    "/login",
+    loginCustomerValidation,
+    validate,
+    customerController.loginCustomer
+);
+
+// CUSTOMER SESSION
 
 router.post(
     "/session",
@@ -29,6 +49,8 @@ router.get(
     authenticateCustomer,
     customerController.getCustomerSession
 );
+
+// TAKEAWAY
 
 router.post(
     "/takeaway",

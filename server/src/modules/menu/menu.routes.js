@@ -14,10 +14,18 @@ const {
     menuIdValidation
 } = require("./menu.validation");
 
+// IMPORTANT:
+// Change this import path if your multer middleware
+// is located somewhere else.
+//
+// This should be the SAME upload middleware you already
+// use successfully for Categories.
+// const upload = require("../../middleware/upload");
+const upload = require("./menu.upload");
 
-// ==========================================
+
+
 // PUBLIC CUSTOMER ROUTES
-// ==========================================
 
 router.get(
     "/",
@@ -32,31 +40,49 @@ router.get(
 );
 
 
-// ==========================================
-// ADMIN ROUTES
-// ==========================================
+// ADMIN CREATE
 
 router.post(
     "/",
     authenticate,
+
+    // IMPORTANT:
+    // Parse multipart/form-data before validation/controller
+    upload.single("image"),
+
     createMenuValidation,
     validate,
+
     menuController.createMenu
 );
+
+
+// ADMIN UPDATE
 
 router.put(
     "/:id",
     authenticate,
+
+    // IMPORTANT:
+    // Parse multipart/form-data
+    upload.single("image"),
+
     updateMenuValidation,
     validate,
+
     menuController.updateMenu
 );
+
+
+// ADMIN DELETE
 
 router.delete(
     "/:id",
     authenticate,
+
     menuIdValidation,
     validate,
+
     menuController.deleteMenu
 );
 
