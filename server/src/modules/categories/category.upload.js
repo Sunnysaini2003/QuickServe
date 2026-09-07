@@ -2,9 +2,7 @@ const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
 
-====
 // UPLOAD DIRECTORY
-====
 
 const uploadDir = path.join(
     process.cwd(),
@@ -18,9 +16,7 @@ if (!fs.existsSync(uploadDir)) {
     });
 }
 
-====
 // STORAGE
-====
 
 const storage = multer.diskStorage({
 
@@ -43,9 +39,7 @@ const storage = multer.diskStorage({
 
 });
 
-====
 // FILE FILTER
-====
 
 const fileFilter = (req, file, cb) => {
 
@@ -72,9 +66,7 @@ const fileFilter = (req, file, cb) => {
 
 };
 
-====
 // MULTER
-====
 
 const uploadCategoryImage = multer({
 
