@@ -3,9 +3,9 @@ const bcrypt = require("bcrypt");
 const db = require("../../utils/db");
 const AppError = require("../../utils/AppError");
 
-// ==========================================
+
 // CREATE STAFF / MANAGER
-// ==========================================
+
 
 const createUser = async ({
     name,
@@ -16,9 +16,9 @@ const createUser = async ({
     profile_image
 }) => {
 
-    // ------------------------------------------
+    
     // Check if email already exists
-    // ------------------------------------------
+    
 
     const existing = await db.query(
         `SELECT id
@@ -35,9 +35,9 @@ const createUser = async ({
         );
     }
 
-    // ------------------------------------------
+    
     // Check role
-    // ------------------------------------------
+    
 
     const roles = await db.query(
         `SELECT id, name
@@ -56,9 +56,9 @@ const createUser = async ({
 
     const role = roles[0];
 
-    // ------------------------------------------
+    
     // Prevent creating another Admin
-    // ------------------------------------------
+    
 
     if (role.name === "Admin") {
         throw new AppError(
@@ -67,18 +67,18 @@ const createUser = async ({
         );
     }
 
-    // ------------------------------------------
+    
     // Hash password
-    // ------------------------------------------
+    
 
     const passwordHash = await bcrypt.hash(
         password,
         10
     );
 
-    // ------------------------------------------
+    
     // Create user
-    // ------------------------------------------
+    
 
     const result = await db.query(
         `INSERT INTO users
@@ -102,9 +102,9 @@ VALUES (?, ?, ?, ?, ?, ?, 1)`,
         ]
     );
 
-    // ------------------------------------------
+    
     // Get created user
-    // ------------------------------------------
+    
 
     const users = await db.query(
         `SELECT
@@ -153,9 +153,9 @@ const getUsers = async () => {
     return users;
 };
 
-// ==========================================
+
 // UPDATE USER
-// ==========================================
+
 
 const updateUser = async (
     userId,
@@ -169,9 +169,9 @@ const updateUser = async (
     }
 ) => {
 
-    // ------------------------------------------
+    
     // Check user exists
-    // ------------------------------------------
+    
 
 const users = await db.query(
     `SELECT
@@ -193,9 +193,9 @@ const users = await db.query(
         );
     }
 
-    // ------------------------------------------
+    
     // Prevent modifying Admin account
-    // ------------------------------------------
+    
 
     if (users[0].role === "Admin") {
         throw new AppError(
@@ -204,9 +204,9 @@ const users = await db.query(
         );
     }
 
-    // ------------------------------------------
+    
     // Check email if email is being changed
-    // ------------------------------------------
+    
 
     if (email) {
 
@@ -227,9 +227,9 @@ const users = await db.query(
         }
     }
 
-    // ------------------------------------------
+    
     // Check role
-    // ------------------------------------------
+    
 
     if (role_id !== undefined) {
 
@@ -256,9 +256,9 @@ const users = await db.query(
         }
     }
 
-    // ------------------------------------------
+    
     // Build update dynamically
-    // ------------------------------------------
+    
 
     const fields = [];
     const values = [];
@@ -298,9 +298,9 @@ const users = await db.query(
         values.push(passwordHash);
     }
 
-    // ------------------------------------------
+    
     // Nothing to update
-    // ------------------------------------------
+    
 
     if (!fields.length) {
         throw new AppError(
@@ -309,9 +309,9 @@ const users = await db.query(
         );
     }
 
-    // ------------------------------------------
+    
     // Update user
-    // ------------------------------------------
+    
 
     values.push(userId);
 
@@ -322,9 +322,9 @@ const users = await db.query(
         values
     );
 
-    // ------------------------------------------
+    
     // Return updated user
-    // ------------------------------------------
+    
 
     const updatedUsers = await db.query(
         `SELECT
@@ -350,17 +350,17 @@ const users = await db.query(
     return updatedUsers[0];
 };
 
-// ==========================================
+
 // UPDATE USER STATUS
-// ==========================================
+
 const updateUserStatus = async (
     userId,
     is_active
 ) => {
 
-    // ------------------------------------------
+    
     // Validate user ID
-    // ------------------------------------------
+    
 
     const id = Number(userId);
 
@@ -372,9 +372,9 @@ const updateUserStatus = async (
     }
 
 
-    // ------------------------------------------
+    
     // Validate status
-    // ------------------------------------------
+    
 
     if (
         is_active !== true &&
@@ -399,9 +399,9 @@ const updateUserStatus = async (
             : 0;
 
 
-    // ------------------------------------------
+    
     // Get user
-    // ------------------------------------------
+    
 
     const users = await db.query(
         `SELECT
@@ -429,9 +429,9 @@ const updateUserStatus = async (
     const user = users[0];
 
 
-    // ------------------------------------------
+    
     // Never modify Admin accounts
-    // ------------------------------------------
+    
 
     if (
         user.role_id === 1 ||
@@ -444,9 +444,9 @@ const updateUserStatus = async (
     }
 
 
-    // ------------------------------------------
+    
     // No change required
-    // ------------------------------------------
+    
 
     if (user.is_active === active) {
 
@@ -455,9 +455,9 @@ const updateUserStatus = async (
     }
 
 
-    // ------------------------------------------
+    
     // Update status
-    // ------------------------------------------
+    
 
     await db.query(
         `UPDATE users
@@ -470,9 +470,9 @@ const updateUserStatus = async (
     );
 
 
-    // ------------------------------------------
+    
     // Return updated user
-    // ------------------------------------------
+    
 
     return await getUserById(id);
 };
