@@ -4,15 +4,15 @@ const generateToken = require("../../utils/generateToken");
 const db = require("../../utils/db");
 const AppError = require("../../utils/AppError");
 
-// ==========================================
+
 // REGISTER INITIAL ADMIN
-// ==========================================
+
 
 const register = async ({ name, email, password }) => {
 
-    // ------------------------------------------
+    
     // Check if email already exists
-    // ------------------------------------------
+    
 
     const existing = await db.query(
         `SELECT id
@@ -26,9 +26,9 @@ const register = async ({ name, email, password }) => {
         throw new AppError("Email already exists", 409);
     }
 
-    // ------------------------------------------
+    
     // Get Admin role
-    // ------------------------------------------
+    
 
     const roles = await db.query(
         `SELECT id
@@ -43,18 +43,18 @@ const register = async ({ name, email, password }) => {
 
     const roleId = roles[0].id;
 
-    // ------------------------------------------
+    
     // Hash password
-    // ------------------------------------------
+    
 
     const hashedPassword = await bcrypt.hash(
         password,
         10
     );
 
-    // ------------------------------------------
+    
     // Create Admin
-    // ------------------------------------------
+    
 
     const result = await db.query(
         `INSERT INTO users
@@ -83,15 +83,15 @@ const register = async ({ name, email, password }) => {
 };
 
 
-// ==========================================
+
 // LOGIN ADMIN / STAFF / MANAGER
-// ==========================================
+
 
 const login = async ({ email, password }) => {
 
-    // ------------------------------------------
+    
     // Find user with role
-    // ------------------------------------------
+    
 
     const users = await db.query(
         `SELECT
@@ -111,9 +111,9 @@ const login = async ({ email, password }) => {
         [email]
     );
 
-    // ------------------------------------------
+    
     // User not found
-    // ------------------------------------------
+    
 
     if (!users.length) {
         throw new AppError(
@@ -124,9 +124,9 @@ const login = async ({ email, password }) => {
 
     const user = users[0];
 
-    // ------------------------------------------
+    
     // Check account status
-    // ------------------------------------------
+    
 
     if (!user.is_active) {
         throw new AppError(
@@ -135,9 +135,9 @@ const login = async ({ email, password }) => {
         );
     }
 
-    // ------------------------------------------
+    
     // Compare password
-    // ------------------------------------------
+    
 
     const isMatch = await bcrypt.compare(
         password,
@@ -151,9 +151,9 @@ const login = async ({ email, password }) => {
         );
     }
 
-    // ------------------------------------------
+    
     // Update last login
-    // ------------------------------------------
+    
 
     await db.query(
         `UPDATE users
@@ -162,9 +162,9 @@ const login = async ({ email, password }) => {
         [user.id]
     );
 
-    // ------------------------------------------
+    
     // Generate JWT
-    // ------------------------------------------
+    
 
     const token = generateToken({
         id: user.id,
@@ -173,9 +173,9 @@ const login = async ({ email, password }) => {
         role: user.role
     });
 
-    // ------------------------------------------
+    
     // Role-specific token name
-    // ------------------------------------------
+    
 
     let roleTokenName = "token";
 
@@ -188,9 +188,9 @@ const login = async ({ email, password }) => {
         roleTokenName = "staff_token";
     }
 
-    // ------------------------------------------
+    
     // Response
-    // ------------------------------------------
+    
 
     return {
         token,
@@ -208,15 +208,15 @@ const login = async ({ email, password }) => {
     };
 };
 
-// ==========================================
+
 // GET CURRENT USER
-// ==========================================
+
 
 const getCurrentUser = async (userId) => {
 
-    // ------------------------------------------
+    
     // Find user
-    // ------------------------------------------
+    
 
     const users = await db.query(
         `SELECT
@@ -239,9 +239,9 @@ const getCurrentUser = async (userId) => {
     );
 
 
-    // ------------------------------------------
+    
     // User no longer exists
-    // ------------------------------------------
+    
 
     if (!users.length) {
 
@@ -256,9 +256,9 @@ const getCurrentUser = async (userId) => {
     const user = users[0];
 
 
-    // ------------------------------------------
+    
     // Account inactive
-    // ------------------------------------------
+    
 
     if (!user.is_active) {
 
@@ -270,9 +270,9 @@ const getCurrentUser = async (userId) => {
     }
 
 
-    // ------------------------------------------
+    
     // Return safe user data
-    // ------------------------------------------
+    
 
     return {
         id: user.id,

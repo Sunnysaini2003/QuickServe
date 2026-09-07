@@ -72,7 +72,7 @@ router.get(
 router.patch(
     "/admin/:id/status",
     authenticate,
-    authorize("Admin"),
+    authorize("Admin","Staff"),
     orderController.updateAdminOrderStatus
 );
 

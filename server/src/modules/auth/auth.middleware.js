@@ -2,9 +2,9 @@ const jwt = require("jsonwebtoken");
 const env = require("../../config/env");
 const AppError = require("../../utils/AppError");
 
-// ==========================================
+
 // AUTHENTICATE
-// ==========================================
+
 
 const authenticate = (req, res, next) => {
 
@@ -44,9 +44,9 @@ const authenticate = (req, res, next) => {
 };
 
 
-// ==========================================
+
 // AUTHORIZE ROLE
-// ==========================================
+
 
 const authorize = (...allowedRoles) => {
 

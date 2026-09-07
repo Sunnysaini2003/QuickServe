@@ -119,9 +119,9 @@ const updateUserStatus = async (req, res, next) => {
         const userId =
             Number(req.params.id);
 
-        // ------------------------------------------
+        
         // Validate user ID
-        // ------------------------------------------
+        
 
         if (
             !Number.isInteger(userId) ||
@@ -134,9 +134,9 @@ const updateUserStatus = async (req, res, next) => {
         }
 
 
-        // ------------------------------------------
+        
         // Validate request body
-        // ------------------------------------------
+        
 
         if (
             req.body.is_active === undefined ||
@@ -149,9 +149,9 @@ const updateUserStatus = async (req, res, next) => {
         }
 
 
-        // ------------------------------------------
+        
         // Update status
-        // ------------------------------------------
+        
 
         const user =
             await userService.updateUserStatus(
@@ -160,9 +160,9 @@ const updateUserStatus = async (req, res, next) => {
             );
 
 
-        // ------------------------------------------
+        
         // Response
-        // ------------------------------------------
+        
 
         res.status(200).json({
             success: true,

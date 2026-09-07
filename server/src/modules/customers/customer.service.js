@@ -319,9 +319,9 @@ const registerCustomer = async ({
     }
 
 
-    // ----------------------------------------------------
+    ----------
     // CHECK MOBILE
-    // ----------------------------------------------------
+    ----------
 
     const existingMobile =
         await db.query(
@@ -342,9 +342,9 @@ const registerCustomer = async ({
     }
 
 
-    // ----------------------------------------------------
+    ----------
     // CHECK EMAIL
-    // ----------------------------------------------------
+    ----------
 
     const existingEmail =
         await db.query(
@@ -365,9 +365,9 @@ const registerCustomer = async ({
     }
 
 
-    // ----------------------------------------------------
+    ----------
     // HASH PASSWORD
-    // ----------------------------------------------------
+    ----------
 
     const passwordHash =
         await bcrypt.hash(
@@ -376,9 +376,9 @@ const registerCustomer = async ({
         );
 
 
-    // ----------------------------------------------------
+    ----------
     // CREATE CUSTOMER
-    // ----------------------------------------------------
+    ----------
 
     const result =
         await db.query(
@@ -406,9 +406,9 @@ const registerCustomer = async ({
         result.insertId;
 
 
-    // ----------------------------------------------------
+    ----------
     // CUSTOMER ACCOUNT TOKEN
-    // ----------------------------------------------------
+    ----------
 
     const token =
         jwt.sign(

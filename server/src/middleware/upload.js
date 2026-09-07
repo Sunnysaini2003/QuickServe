@@ -2,9 +2,9 @@ const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
 
-// ============================================================
+====
 // CREATE UPLOAD MIDDLEWARE
-// ============================================================
+====
 
 const createImageUpload = (folder, prefix) => {
 
@@ -21,9 +21,9 @@ const createImageUpload = (folder, prefix) => {
         });
     }
 
-    // --------------------------------------------------------
+    --------------
     // STORAGE
-    // --------------------------------------------------------
+    --------------
 
     const storage = multer.diskStorage({
 
@@ -47,9 +47,9 @@ const createImageUpload = (folder, prefix) => {
 
     });
 
-    // --------------------------------------------------------
+    --------------
     // FILE FILTER
-    // --------------------------------------------------------
+    --------------
 
     const fileFilter = (req, file, cb) => {
 
@@ -72,9 +72,9 @@ const createImageUpload = (folder, prefix) => {
 
     };
 
-    // --------------------------------------------------------
+    --------------
     // MULTER
-    // --------------------------------------------------------
+    --------------
 
     return multer({
 
@@ -91,9 +91,9 @@ const createImageUpload = (folder, prefix) => {
 };
 
 
-// ============================================================
+====
 // UPLOAD INSTANCES
-// ============================================================
+====
 
 const uploadUserImage = createImageUpload(
     "users",
@@ -106,9 +106,9 @@ const uploadCategoryImage = createImageUpload(
 );
 
 
-// ============================================================
+====
 // EXPORTS
-// ============================================================
+====
 
 module.exports = {
     uploadUserImage,

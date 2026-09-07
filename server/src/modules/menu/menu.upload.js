@@ -9,7 +9,7 @@ const fs = require("fs");
 const uploadDir = path.join(
     process.cwd(),
     "uploads",
-    "categories"
+    "menu"
 );
 
 if (!fs.existsSync(uploadDir)) {
@@ -23,24 +23,21 @@ if (!fs.existsSync(uploadDir)) {
 ====
 
 const storage = multer.diskStorage({
-
     destination: (req, file, cb) => {
         cb(null, uploadDir);
     },
 
     filename: (req, file, cb) => {
-
         const extension =
             path.extname(file.originalname).toLowerCase();
 
         const uniqueName =
-            `category-${Date.now()}-${Math.round(
+            `menu-${Date.now()}-${Math.round(
                 Math.random() * 1E9
             )}${extension}`;
 
         cb(null, uniqueName);
     }
-
 });
 
 ====
@@ -56,36 +53,28 @@ const fileFilter = (req, file, cb) => {
     ];
 
     if (allowedTypes.includes(file.mimetype)) {
-
         cb(null, true);
-
     } else {
-
         cb(
             new Error(
                 "Only JPG, PNG and WebP images are allowed"
             ),
             false
         );
-
     }
-
 };
 
 ====
 // MULTER
 ====
 
-const uploadCategoryImage = multer({
-
+const uploadMenuImage = multer({
     storage,
-
     fileFilter,
 
     limits: {
         fileSize: 2 * 1024 * 1024
     }
-
 });
 
-module.exports = uploadCategoryImage;
+module.exports = uploadMenuImage;

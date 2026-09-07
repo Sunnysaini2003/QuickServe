@@ -1,8 +1,8 @@
 const { body, param } = require("express-validator");
 
-// ============================================================
+====
 // CATEGORY ID VALIDATION
-// ============================================================
+====
 
 const categoryIdValidation = [
 
@@ -12,9 +12,9 @@ const categoryIdValidation = [
 
 ];
 
-// ============================================================
+====
 // CREATE CATEGORY VALIDATION
-// ============================================================
+====
 
 const createCategoryValidation = [
 
@@ -36,9 +36,9 @@ const createCategoryValidation = [
 
 ];
 
-// ============================================================
+====
 // UPDATE CATEGORY VALIDATION
-// ============================================================
+====
 
 const updateCategoryValidation = [
     param("id")
@@ -58,9 +58,9 @@ const updateCategoryValidation = [
         )
 ];
 
-// ============================================================
+====
 // UPDATE CATEGORY STATUS VALIDATION
-// ============================================================
+====
 
 const categoryStatusValidation = [
 
@@ -76,9 +76,9 @@ const categoryStatusValidation = [
 
 ];
 
-// ============================================================
+====
 // EXPORTS
-// ============================================================
+====
 
 module.exports = {
 

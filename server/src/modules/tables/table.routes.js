@@ -1,28 +1,53 @@
 const express = require("express");
+
 const router = express.Router();
 
 const tableController = require("./table.controller");
-const authenticate = require("../auth/auth.middleware");
-const validate = require("../../middleware/validate");
+
+const authenticate =
+    require("../auth/auth.middleware");
+
+const validate =
+    require("../../middleware/validate");
 
 const {
-    createTableValidation
+    createTableValidation,
+    updateTableValidation,
+    tableIdValidation,
+    tableStatusValidation
 } = require("./table.validation");
 
 
-/// Public - Customer QR
+// PUBLIC CUSTOMER ROUTES
+
+
+// Verify table using QR token
 router.get(
     "/token/:token",
     tableController.getTableByToken
 );
 
-// Admin
+
+// ADMIN ROUTES
+
+
+// Get all tables
 router.get(
     "/",
     authenticate,
     tableController.getAllTables
 );
 
+// Get table by ID
+router.get(
+    "/:id",
+    authenticate,
+    tableIdValidation,
+    validate,
+    tableController.getTableById
+);
+
+// Create table
 router.post(
     "/",
     authenticate,
@@ -31,7 +56,31 @@ router.post(
     tableController.createTable
 );
 
+// Update table
+router.put(
+    "/:id",
+    authenticate,
+    updateTableValidation,
+    validate,
+    tableController.updateTable
+);
 
+// Update table status
+router.patch(
+    "/:id/status",
+    authenticate,
+    tableStatusValidation,
+    validate,
+    tableController.updateTableStatus
+);
 
+// Delete table
+router.delete(
+    "/:id",
+    authenticate,
+    tableIdValidation,
+    validate,
+    tableController.deleteTable
+);
 
 module.exports = router;

@@ -73,9 +73,9 @@ const updateOrderStatus = async (orderId, status) => {
         "Cancelled"
     ];
 
-    // ---------------------------------------------------------
+    ---------------
     // Validate status
-    // ---------------------------------------------------------
+    ---------------
 
     if (!allowedStatuses.includes(status)) {
         throw new AppError(
@@ -85,9 +85,9 @@ const updateOrderStatus = async (orderId, status) => {
     }
 
 
-    // ---------------------------------------------------------
+    ---------------
     // Get current order
-    // ---------------------------------------------------------
+    ---------------
 
     const orders = await db.query(
         `SELECT
@@ -113,9 +113,9 @@ const updateOrderStatus = async (orderId, status) => {
     const sessionId = currentOrder.session_id;
 
 
-    // ---------------------------------------------------------
+    ---------------
     // Prevent changing completed/cancelled orders
-    // ---------------------------------------------------------
+    ---------------
 
     if (
         currentStatus === "Served" ||
@@ -128,9 +128,9 @@ const updateOrderStatus = async (orderId, status) => {
     }
 
 
-    // ---------------------------------------------------------
+    ---------------
     // Update order status
-    // ---------------------------------------------------------
+    ---------------
 
     if (status === "Preparing") {
 
@@ -168,12 +168,12 @@ const updateOrderStatus = async (orderId, status) => {
     }
 
 
-    // ---------------------------------------------------------
+    ---------------
     // CLOSE TABLE SESSION
     //
     // Only when order becomes Served/Cancelled
     // AND there are no other active orders in this session.
-    // ---------------------------------------------------------
+    ---------------
 
     if (
         status === "Served" ||
@@ -195,9 +195,9 @@ const updateOrderStatus = async (orderId, status) => {
         );
 
 
-        // -----------------------------------------------------
+        -----------
         // No active orders remaining
-        // -----------------------------------------------------
+        -----------
 
         if (activeOrders.length === 0) {
 
@@ -215,9 +215,9 @@ const updateOrderStatus = async (orderId, status) => {
     }
 
 
-    // ---------------------------------------------------------
+    ---------------
     // Get updated order
-    // ---------------------------------------------------------
+    ---------------
 
     const updated = await db.query(
         `SELECT
