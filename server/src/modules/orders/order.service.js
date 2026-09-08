@@ -38,9 +38,7 @@ const createOrder = async ({
         await connection.beginTransaction();
 
 
-       
         // 1. Verify active customer session
-       
 
         const [sessionRows] = await connection.query(
             `SELECT
@@ -72,9 +70,7 @@ const createOrder = async ({
         const session = sessionRows[0];
 
 
-       
         // 2. Determine Order Mode
-       
 
         const orderMode =
             session.session_type === "Takeaway"
@@ -82,9 +78,7 @@ const createOrder = async ({
                 : "DineIn";
 
 
-       
         // 3. Check Existing Pending Order
-       
 
         const [existingOrders] = await connection.query(
             `SELECT *
@@ -100,9 +94,7 @@ const createOrder = async ({
         let orderId;
 
 
-       
         // 4. Existing Pending Order
-       
 
         if (existingOrders.length) {
 
@@ -111,9 +103,7 @@ const createOrder = async ({
         }
 
 
-       
         // 5. Create New Order
-       
 
         else {
 
@@ -167,9 +157,7 @@ const createOrder = async ({
         }
 
 
-       
         // 6. Process Items
-       
 
         for (const item of items) {
 
@@ -230,9 +218,7 @@ const createOrder = async ({
             const subtotal = price * quantity;
 
 
-           
             // Check Existing Item
-           
 
             const [existingItems] = await connection.query(
                 `SELECT
@@ -301,9 +287,7 @@ const createOrder = async ({
         }
 
 
-       
         // 7. Recalculate Complete Order Total
-       
 
         const [totalRows] = await connection.query(
             `SELECT
@@ -318,9 +302,7 @@ const createOrder = async ({
             Number(totalRows[0].total);
 
 
-       
         // 8. Update Order
-       
 
         await connection.query(
             `UPDATE orders
@@ -336,9 +318,7 @@ const createOrder = async ({
         );
 
 
-       
         // 9. Get Complete Order
-       
 
         const [orderRows] = await connection.query(
             `SELECT
@@ -391,12 +371,12 @@ const createOrder = async ({
         };
 
 
-        
+
         // REAL-TIME NEW ORDER
         //
         // IMPORTANT:
         // Emit only AFTER the database transaction commits.
-        
+
 
         try {
 
@@ -617,9 +597,7 @@ const getAdminOrders = async ({
     const conditions = [];
     const params = [];
 
-   
     // SEARCH
-   
 
     if (search.trim()) {
 
@@ -644,9 +622,7 @@ const getAdminOrders = async ({
     }
 
 
-   
     // STATUS
-   
 
     if (status) {
 
@@ -674,9 +650,7 @@ const getAdminOrders = async ({
     }
 
 
-   
     // ORDER MODE
-   
 
     if (orderMode) {
 
@@ -699,9 +673,7 @@ const getAdminOrders = async ({
     }
 
 
-   
     // ORDER TYPE
-   
 
     if (orderType) {
 
@@ -730,9 +702,7 @@ const getAdminOrders = async ({
             : "";
 
 
-   
     // TOTAL COUNT
-   
 
     const countRows = await db.query(
         `
@@ -759,9 +729,7 @@ const getAdminOrders = async ({
         Number(countRows[0]?.total || 0);
 
 
-   
     // ORDERS
-   
 
     const orders = await db.query(
         `
@@ -811,9 +779,7 @@ const getAdminOrders = async ({
     );
 
 
-   
     // ORDER ITEMS
-   
 
     for (const order of orders) {
 
@@ -960,9 +926,9 @@ const updateOrderStatus = async (orderId, status) => {
         "Cancelled"
     ];
 
-   
+
     // Validate status
-   
+
 
     if (!allowedStatuses.includes(status)) {
         throw new AppError(
@@ -972,9 +938,9 @@ const updateOrderStatus = async (orderId, status) => {
     }
 
 
-   
+
     // Get current order
-   
+
 
     const orders = await db.query(
         `SELECT
@@ -1000,9 +966,9 @@ const updateOrderStatus = async (orderId, status) => {
     const sessionId = currentOrder.session_id;
 
 
-   
+
     // Prevent changing completed/cancelled orders
-  
+
 
     if (
         currentStatus === "Served" ||
@@ -1015,9 +981,9 @@ const updateOrderStatus = async (orderId, status) => {
     }
 
 
- 
+
     // Update order status
- 
+
 
     if (status === "Preparing") {
 
@@ -1055,17 +1021,14 @@ const updateOrderStatus = async (orderId, status) => {
     }
 
 
- 
+
     // CLOSE TABLE SESSION
     //
     // Only when order becomes Served/Cancelled
     // AND there are no other active orders in this session.
 
 
-    if (
-        status === "Served" ||
-        status === "Cancelled"
-    ) {
+    if (status === "Cancelled") {
 
         const activeOrders = await db.query(
             `SELECT
@@ -1082,9 +1045,7 @@ const updateOrderStatus = async (orderId, status) => {
         );
 
 
-       
         // No active orders remaining
-     
 
         if (activeOrders.length === 0) {
 
@@ -1102,9 +1063,9 @@ const updateOrderStatus = async (orderId, status) => {
     }
 
 
-  
+
     // Get updated order
- 
+
 
     const updated = await db.query(
         `SELECT
@@ -1144,9 +1105,9 @@ const updateOrderStatus = async (orderId, status) => {
         updated[0];
 
 
-    
+
     // REAL-TIME STATUS UPDATE
-    
+
 
     try {
 

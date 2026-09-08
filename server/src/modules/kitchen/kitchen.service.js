@@ -175,10 +175,7 @@ const updateOrderStatus = async (orderId, status) => {
     // AND there are no other active orders in this session.
     
 
-    if (
-        status === "Served" ||
-        status === "Cancelled"
-    ) {
+    if (status === "Cancelled") {
 
         const activeOrders = await db.query(
             `SELECT
