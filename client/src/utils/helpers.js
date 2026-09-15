@@ -1,6 +1,5 @@
 // src/utils/helpers.js
 
-// Ideally, fetch this from your .env file instead of hardcoding
 export const API_URL = (
     import.meta.env.VITE_API_URL || "http://localhost:5000"
 ).replace(/\/+$/, "");
@@ -9,17 +8,22 @@ export const API_URL = (
  * Formats image paths into valid URLs
  */
 export const getImageUrl = (image) => {
-    if (!image || typeof image !== "string") return null;
+    if (!image || typeof image !== "string") {
+        return null;
+    }
 
     const path = image.trim();
-    if (!path) return null;
 
-    // Full URL or base64
+    if (!path) {
+        return null;
+    }
+
+    // Already a full URL or base64 image
     if (/^(https?:\/\/|data:)/.test(path)) {
         return path;
     }
 
-    // Remove leading slashes
+    // Remove all leading slashes
     const cleanPath = path.replace(/^\/+/, "");
 
     if (cleanPath.startsWith("uploads/")) {
@@ -40,8 +44,11 @@ export const toBoolean = (value) => {
  * Safely extracts an array from various API response structures
  */
 export const extractArray = (response) => {
-    // Uses Optional Chaining and Nullish Coalescing to drill down safely
-    const data = response?.data?.data ?? response?.data ?? response;
+    const data =
+        response?.data?.data ??
+        response?.data ??
+        response;
+
     return Array.isArray(data) ? data : [];
 };
 
