@@ -16,7 +16,7 @@ const Dashboard = lazy(() => import("./pages/admin/Dashboard"));
 const Users = lazy(() => import("./pages/admin/Users"));
 const Orders = lazy(() => import("./pages/admin/Orders"));
 const Categories = lazy(() => import("./pages/admin/Categories"));
-const AdminMenu = lazy(() => import("./pages/admin/Adminmenu"));
+const AdminMenu = lazy(() => import("./pages/admin/AdminMenu"));
 const AdminTables = lazy(() => import("./pages/admin/AdminTables"));
 
 // MANAGER
