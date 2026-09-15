@@ -5,6 +5,10 @@
       "destination": "https://quickserve-api-1uhl.onrender.com/api/:path*"
     },
     {
+      "source": "/uploads/:path*",
+      "destination": "https://quickserve-api-1uhl.onrender.com/uploads/:path*"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
