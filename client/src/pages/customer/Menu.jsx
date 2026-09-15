@@ -54,8 +54,73 @@ const Menu = () => {
   // CART
   // =======================================================
 
-  const [cart, setCart] = useState([]);
+  // Keep the cart on the device so a normal page refresh does not
+  // wipe items. The key is scoped to the active table QR token so
+  // one table can never inherit another table's cart.
+  const tableToken =
+    typeof window !== "undefined"
+      ? localStorage.getItem("tableToken") || ""
+      : "";
+
+  const cartStorageKey = tableToken
+    ? `quickserve_cart_${tableToken}`
+    : "quickserve_cart_unknown";
+
+  const [cart, setCart] = useState(() => {
+    if (typeof window === "undefined" || !tableToken) {
+      return [];
+    }
+
+    try {
+      const stored = localStorage.getItem(cartStorageKey);
+
+      if (!stored) {
+        return [];
+      }
+
+      const parsed = JSON.parse(stored);
+
+      if (!Array.isArray(parsed)) {
+        localStorage.removeItem(cartStorageKey);
+        return [];
+      }
+
+      return parsed.filter(
+        (item) =>
+          item &&
+          Number(item.id) > 0 &&
+          Number(item.quantity) > 0,
+      );
+    } catch (error) {
+      console.warn("QuickServe cart restore failed:", error);
+      localStorage.removeItem(cartStorageKey);
+      return [];
+    }
+  });
+
   const [isCartOpen, setIsCartOpen] = useState(false);
+
+  // Persist every cart change. This intentionally stores cart data only;
+  // authentication tokens remain HttpOnly cookies.
+  useEffect(() => {
+    if (!tableToken) {
+      return;
+    }
+
+    try {
+      if (cart.length === 0) {
+        localStorage.removeItem(cartStorageKey);
+        return;
+      }
+
+      localStorage.setItem(
+        cartStorageKey,
+        JSON.stringify(cart),
+      );
+    } catch (error) {
+      console.warn("QuickServe cart persistence failed:", error);
+    }
+  }, [cart, cartStorageKey, tableToken]);
 
   // =======================================================
   // ORDER
@@ -79,8 +144,36 @@ const Menu = () => {
   // =======================================================
 
   useEffect(() => {
-    // Authentication is now enforced by the HttpOnly customer session cookie.
-  }, []);
+    let mounted = true;
+
+    const verifyCustomerSession = async () => {
+      try {
+        await api.get("/customers/session");
+      } catch (err) {
+        if (!mounted || err?.response?.status !== 401) {
+          return;
+        }
+
+        // Return to the same table QR entry point instead of the
+        // bare home page, so mobile customers do not see "Invalid QR"
+        // after an expired/missing customer session.
+        if (tableToken) {
+          navigate(
+            `/?table=${encodeURIComponent(tableToken)}`,
+            { replace: true },
+          );
+        } else {
+          navigate("/", { replace: true });
+        }
+      }
+    };
+
+    verifyCustomerSession();
+
+    return () => {
+      mounted = false;
+    };
+  }, [navigate, tableToken]);
 
   // CUSTOMER REAL-TIME ORDER STATUS
 
@@ -371,16 +464,18 @@ const Menu = () => {
       setIsCartOpen(false);
     } catch (err) {
       if (err?.response?.status === 401) {
-    console.error("Order authentication failed:", err);
+        console.error("Order authentication failed:", err);
 
-    setError(
-        err?.response?.data?.message ||
-        "Your customer session is not available. Please scan the table QR again."
-    );
+        setError(
+          err?.response?.data?.message ||
+            "Your customer session is not available. Please scan the table QR again.",
+        );
 
-    setIsCartOpen(false);
-    return;
-}
+        // Keep the cart intact on an auth/network failure.
+        // The customer should not lose their selected items.
+        setIsCartOpen(false);
+        return;
+      }
 
       if (err?.response?.status === 404) {
         setError(
@@ -420,6 +515,10 @@ const Menu = () => {
     localStorage.removeItem("customerToken");
     localStorage.removeItem("tableToken");
     localStorage.removeItem("customerTableId");
+
+    if (tableToken) {
+      localStorage.removeItem(cartStorageKey);
+    }
 
     setCart([]);
     setOrderSuccess(null);

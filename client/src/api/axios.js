@@ -1,13 +1,31 @@
 import axios from "axios";
 
-const apiBaseUrl = String(import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
+const apiBaseUrl = String(
+  import.meta.env.VITE_API_URL || "",
+).replace(/\/$/, "");
 
-if (!apiBaseUrl) {
-  console.warn("VITE_API_URL is not configured. API requests will fail until it is set.");
+const runtimeHostname =
+  typeof window !== "undefined"
+    ? window.location.hostname
+    : "";
+
+const useSameOriginApi =
+  String(import.meta.env.VITE_API_PROXY || "").toLowerCase() ===
+    "true" ||
+  runtimeHostname.endsWith(".vercel.app");
+
+if (!apiBaseUrl && !useSameOriginApi) {
+  console.warn(
+    "VITE_API_URL is not configured and VITE_API_PROXY is not enabled. API requests may fail.",
+  );
 }
 
+const apiBaseURL = useSameOriginApi
+  ? "/api"
+  : `${apiBaseUrl}/api`;
+
 const api = axios.create({
-  baseURL: `${apiBaseUrl}/api`,
+  baseURL: apiBaseURL,
   withCredentials: true,
 });
 

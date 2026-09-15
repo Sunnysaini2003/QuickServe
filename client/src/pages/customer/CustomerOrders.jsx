@@ -59,6 +59,11 @@ const CustomerOrders = () => {
     }
   }, []);
 
+  const tableToken =
+    typeof window !== "undefined"
+      ? localStorage.getItem("tableToken") || ""
+      : "";
+
   // Customer authentication is enforced by the HttpOnly session cookie.
 
   const handleAuthError = (err) => {
@@ -73,7 +78,14 @@ const CustomerOrders = () => {
       localStorage.removeItem("tableToken");
       localStorage.removeItem("customerTableId");
 
-      navigate("/", { replace: true });
+      if (tableToken) {
+        navigate(
+          `/?table=${encodeURIComponent(tableToken)}`,
+          { replace: true },
+        );
+      } else {
+        navigate("/", { replace: true });
+      }
 
       return true;
     }
@@ -214,6 +226,10 @@ const CustomerOrders = () => {
       localStorage.removeItem("customerToken");
       localStorage.removeItem("tableToken");
       localStorage.removeItem("customerTableId");
+
+      if (tableToken) {
+        localStorage.removeItem(`quickserve_cart_${tableToken}`);
+      }
 
       navigate("/", { replace: true });
     }
