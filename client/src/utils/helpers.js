@@ -1,7 +1,9 @@
 // src/utils/helpers.js
 
 // Ideally, fetch this from your .env file instead of hardcoding
-export const API_URL = import.meta.env.VITE_API_URL;
+export const API_URL = (
+    import.meta.env.VITE_API_URL || "http://localhost:5000"
+).replace(/\/+$/, "");
 
 /**
  * Formats image paths into valid URLs
