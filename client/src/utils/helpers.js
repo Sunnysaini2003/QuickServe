@@ -1,41 +1,9 @@
-// src/utils/helpers.js
-
-const configuredApiUrl = String(
+const API_URL = (
     import.meta.env.VITE_API_URL || "http://localhost:5000"
 ).replace(/\/+$/, "");
 
-/*
- * In production on Vercel, use same-origin paths.
- *
- * This allows:
- *
- * /uploads/menu/file.jpg
- * /uploads/categories/file.jpg
- *
- * to be served through the Vercel rewrite instead of
- * directly loading resources from the Render origin.
- */
-const isVercelProduction =
-    typeof window !== "undefined" &&
-    window.location.hostname.endsWith(".vercel.app");
+export { API_URL };
 
-export const API_URL = isVercelProduction
-    ? ""
-    : configuredApiUrl;
-
-
-/**
- * Formats image paths into valid URLs.
- *
- * Supported database values:
- *
- * uploads/menu/file.jpg
- * uploads/categories/file.jpg
- * /uploads/menu/file.jpg
- * /uploads/categories/file.jpg
- * file.jpg
- * https://...
- */
 export const getImageUrl = (image) => {
     if (!image || typeof image !== "string") {
         return null;
@@ -47,39 +15,22 @@ export const getImageUrl = (image) => {
         return null;
     }
 
-    /*
-     * Already a complete URL or data URI.
-     */
+    // Already an absolute URL/data/blob URL
     if (/^(https?:\/\/|data:|blob:)/i.test(path)) {
         return path;
     }
 
-    /*
-     * Remove leading slashes.
-     */
     const cleanPath = path.replace(/^\/+/, "");
 
-    /*
-     * Existing uploads path.
-     *
-     * Example:
-     * uploads/menu/menu-123.jpg
-     */
+    // Database stores uploads/...
     if (cleanPath.startsWith("uploads/")) {
         return `${API_URL}/${cleanPath}`;
     }
 
-    /*
-     * If backend/database stores only the filename,
-     * treat it as a menu image.
-     */
+    // Filename only = menu image
     return `${API_URL}/uploads/menu/${cleanPath}`;
 };
 
-
-/**
- * Safely converts values into boolean.
- */
 export const toBoolean = (value) => {
     return [
         true,
@@ -91,25 +42,15 @@ export const toBoolean = (value) => {
     ].includes(value);
 };
 
-
-/**
- * Safely extracts an array from API responses.
- */
 export const extractArray = (response) => {
     const data =
         response?.data?.data ??
         response?.data ??
         response;
 
-    return Array.isArray(data)
-        ? data
-        : [];
+    return Array.isArray(data) ? data : [];
 };
 
-
-/**
- * Safely extracts an order object.
- */
 export const extractOrder = (response) => {
     return (
         response?.data?.data ||
