@@ -12,7 +12,7 @@ const generateQRCode = async (tableNumber, qrToken) => {
 
     const frontendURL = process.env.CLIENT_URL || "http://localhost:5173";
 
-    const qrUrl = `${frontendURL}/table/${qrToken}`;
+    const qrUrl = `${frontendURL}/?table=${encodeURIComponent(qrToken)}`;
 
     const fileName = `table-${tableNumber}.png`;
 
