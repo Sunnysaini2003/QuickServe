@@ -1,5 +1,10 @@
 const customerService = require("./customer.service");
 const { success } = require("../../utils/apiResponse");
+const {
+    setCustomerSessionCookie,
+    setCustomerAuthCookie,
+    clearAllCustomerCookies
+} = require("../../utils/authCookies");
 
 const createCustomerSession = async (req, res, next) => {
 
@@ -10,10 +15,18 @@ const createCustomerSession = async (req, res, next) => {
                 req.body
             );
 
+        if (!session?.token) {
+            throw new Error("Customer session token was not generated");
+        }
+
+        setCustomerSessionCookie(res, session.token);
+
+        const { token: _token, ...safeSession } = session;
+
         return success(
             res,
             "Customer session created successfully",
-            session,
+            safeSession,
             201
         );
 
@@ -53,10 +66,22 @@ const createTakeawaySession = async (req, res, next) => {
                 mobile: req.body.mobile
             });
 
+        if (!result?.token) {
+            throw new Error("Takeaway session token was not generated");
+        }
+
+        setCustomerSessionCookie(
+            res,
+            result.token,
+            7 * 24 * 60 * 60 * 1000
+        );
+
+        const { token: _token, ...safeResult } = result;
+
         return success(
             res,
             "Takeaway session created successfully",
-            result,
+            safeResult,
             201
         );
 
@@ -79,10 +104,18 @@ const registerCustomer = async (
                 req.body
             );
 
+        if (!result?.token) {
+            throw new Error("Customer authentication token was not generated");
+        }
+
+        setCustomerAuthCookie(res, result.token);
+
+        const { token: _token, ...safeResult } = result;
+
         return success(
             res,
             "Customer account created successfully",
-            result,
+            safeResult,
             201
         );
 
@@ -107,10 +140,18 @@ const loginCustomer = async (
                 req.body
             );
 
+        if (!result?.token) {
+            throw new Error("Customer authentication token was not generated");
+        }
+
+        setCustomerAuthCookie(res, result.token);
+
+        const { token: _token, ...safeResult } = result;
+
         return success(
             res,
             "Customer login successful",
-            result
+            safeResult
         );
 
     } catch (error) {
@@ -119,11 +160,53 @@ const loginCustomer = async (
 
     }
 };
+const logoutCustomer = async (req, res, next) => {
+    try {
+        clearAllCustomerCookies(res);
+
+        return success(
+            res,
+            "Customer logout successful",
+            null
+        );
+    } catch (error) {
+        next(error);
+    }
+};
+
+const searchManagerCustomers = async (
+    req,
+    res,
+    next
+) => {
+    try {
+
+        const customers =
+            await customerService.searchManagerCustomers({
+                search:
+                    req.query.search || "",
+
+                limit:
+                    req.query.limit || 20,
+            });
+
+        return success(
+            res,
+            "Customers fetched successfully",
+            customers
+        );
+
+    } catch (error) {
+        next(error);
+    }
+};
 
 module.exports = {
     createCustomerSession,
     getCustomerSession,
     createTakeawaySession,
     registerCustomer,
-    loginCustomer
+    loginCustomer,
+    logoutCustomer,
+    searchManagerCustomers
 };

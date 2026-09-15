@@ -4,7 +4,7 @@ const path = require("path");
 
 const generateQRCode = async (tableNumber, qrToken) => {
 
-    const uploadDir = path.join(process.cwd(), "uploads", "qr");
+    const uploadDir = path.resolve(__dirname, "../../uploads/qr");
 
     if (!fs.existsSync(uploadDir)) {
         fs.mkdirSync(uploadDir, { recursive: true });

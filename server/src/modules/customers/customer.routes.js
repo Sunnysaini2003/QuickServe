@@ -17,6 +17,12 @@ const {
     loginCustomerValidation
 } = require("./customer.validation");
 
+router.get(
+    "/manager",
+    require("../auth/auth.middleware").authenticate,
+    require("../auth/auth.middleware").authorize("Manager"),
+    customerController.searchManagerCustomers
+);
 
 // CUSTOMER ACCOUNT
 router.post(
@@ -32,6 +38,11 @@ router.post(
     loginCustomerValidation,
     validate,
     customerController.loginCustomer
+);
+
+router.post(
+    "/logout",
+    customerController.logoutCustomer
 );
 
 // CUSTOMER SESSION

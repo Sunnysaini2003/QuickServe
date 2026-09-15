@@ -1,6 +1,11 @@
 const jwt = require("jsonwebtoken");
 
 const env = require("../config/env");
+const {
+  EMPLOYEE_COOKIE_NAMES,
+  CUSTOMER_SESSION_COOKIE,
+  getCookieFromHeader,
+} = require("../utils/authCookies");
 
 let ioInstance = null;
 
@@ -23,54 +28,99 @@ const initializeSocket = (io) => {
 
   io.use((socket, next) => {
     try {
-      const token = socket.handshake.auth?.token;
+      const requestedRole = String(
+        socket.handshake.auth?.role || ""
+      ).toLowerCase();
 
-      if (!token) {
-        return next(new Error("Authentication token required"));
-      }
+      const cookieHeader =
+        socket.handshake.headers?.cookie || "";
 
-      // ADMIN / STAFF JWT
+      if (["admin", "staff", "manager"].includes(requestedRole)) {
+        const role =
+          requestedRole.charAt(0).toUpperCase() +
+          requestedRole.slice(1);
 
-      try {
-        const decoded = jwt.verify(token, env.JWT_SECRET);
+        const token = getCookieFromHeader(
+          cookieHeader,
+          EMPLOYEE_COOKIE_NAMES[role]
+        );
+
+        if (!token) {
+          return next(
+            new Error("Authentication cookie required")
+          );
+        }
+
+        const decoded = jwt.verify(
+          token,
+          env.JWT_SECRET
+        );
+
+        if (decoded.role !== role) {
+          return next(
+            new Error("Socket role mismatch")
+          );
+        }
 
         socket.user = decoded;
-
         socket.authType = "staff";
 
-        console.log("🔐 Staff/Admin socket authenticated:", {
-          socketId: socket.id,
-          userId: decoded.id || decoded.userId || decoded.user_id,
-          role: decoded.role || decoded.role_name,
-        });
+        console.log(
+          `🔐 ${role} socket authenticated:`,
+          {
+            socketId: socket.id,
+            userId: decoded.id || decoded.userId || decoded.user_id,
+            role: decoded.role,
+          }
+        );
 
         return next();
-      } catch (staffError) {
-        // Try customer token below
       }
 
-      // CUSTOMER JWT
+      if (requestedRole === "customer") {
+        const token = getCookieFromHeader(
+          cookieHeader,
+          CUSTOMER_SESSION_COOKIE
+        );
 
-      try {
-        const decoded = jwt.verify(token, env.CUSTOMER_JWT_SECRET);
+        if (!token) {
+          return next(
+            new Error("Customer authentication cookie required")
+          );
+        }
+
+        const decoded = jwt.verify(
+          token,
+          env.CUSTOMER_JWT_SECRET
+        );
 
         socket.customer = decoded;
-
         socket.authType = "customer";
 
-        console.log("👤 Customer socket authenticated:", {
-          socketId: socket.id,
-          sessionId: decoded.sessionId || decoded.session_id,
-        });
+        console.log(
+          "🔐 Customer socket authenticated:",
+          {
+            socketId: socket.id,
+            customerId: decoded.customerId,
+            sessionId: decoded.sessionId,
+          }
+        );
 
         return next();
-      } catch (customerError) {
-        return next(new Error("Invalid or expired token"));
       }
-    } catch (error) {
-      console.error("❌ Socket authentication error:", error);
 
-      return next(new Error("Socket authentication failed"));
+      return next(
+        new Error("Socket authentication role required")
+      );
+    } catch (error) {
+      console.error(
+        "❌ Socket authentication failed:",
+        error.message
+      );
+
+      return next(
+        new Error("Socket authentication failed")
+      );
     }
   });
 
@@ -110,6 +160,40 @@ const initializeSocket = (io) => {
       socket.join("kitchen");
 
       console.log(`👨‍🍳 ${socket.id} joined kitchen`);
+    });
+
+    // MANAGER ROOM
+
+    socket.on("join_manager", () => {
+      if (socket.authType !== "staff") {
+        console.warn(`🚫 Manager access denied: ${socket.id}`);
+
+        socket.emit("socket_error", {
+          message: "Manager authentication required",
+        });
+
+        return;
+      }
+
+      const role = socket.user?.role || socket.user?.role_name;
+      const normalizedRole = String(role || "").toLowerCase();
+
+      if (normalizedRole !== "manager") {
+        console.warn(
+          `🚫 Non-manager attempted to join manager room: ${socket.id}`,
+          role,
+        );
+
+        socket.emit("socket_error", {
+          message: "Manager access required",
+        });
+
+        return;
+      }
+
+      socket.join("manager");
+
+      console.log(`👔 ${socket.id} joined manager`);
     });
 
     // ADMIN ROOM
@@ -167,6 +251,8 @@ const emitNewOrder = (order) => {
 
   // Admin
   io.to("admin").emit("new_order", order);
+  // Manager
+  io.to("manager").emit("new_order", order);
 
   // Customer
   const sessionId = order?.session_id;
@@ -192,6 +278,9 @@ const emitOrderStatusUpdated = (order) => {
 
   // Admin
   io.to("admin").emit("order_status_updated", order);
+
+  // Manager
+  io.to("manager").emit("order_status_updated", order);
 
   // Customer
   const sessionId = order?.session_id;

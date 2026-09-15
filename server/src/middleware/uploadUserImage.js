@@ -6,11 +6,7 @@ const fs = require("fs");
 // UPLOAD DIRECTORY
 
 
-const uploadDir = path.join(
-    process.cwd(),
-    "uploads",
-    "users"
-);
+const uploadDir = path.resolve(__dirname, "../../uploads/users");
 
 // Create directory if it doesn't exist
 if (!fs.existsSync(uploadDir)) {

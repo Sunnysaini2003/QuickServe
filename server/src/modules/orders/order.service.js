@@ -1,6 +1,6 @@
 const db = require("../../utils/db");
 const AppError = require("../../utils/AppError");
-
+const { v4: uuid } = require("uuid");
 
 const {
     emitNewOrder,
@@ -17,6 +17,10 @@ const generateOrderNumber = () => {
     return `QS-${timestamp}-${random}`;
 };
 
+const normalizeMobile = (value) =>
+    String(value || "")
+        .replace(/\D/g, "")
+        .slice(-10);
 
 const createOrder = async ({
     sessionId,
@@ -916,6 +920,125 @@ const getAdminOrderById = async (
     return order;
 };
 
+const getOrdersForExport = async ({
+    search = "",
+    status = "",
+    orderMode = "",
+    orderType = "",
+}) => {
+    const conditions = [];
+    const params = [];
+
+    if (String(search || "").trim()) {
+        const searchValue = `%${String(search).trim()}%`;
+        conditions.push(`
+            (
+                o.order_number LIKE ?
+                OR c.name LIKE ?
+                OR c.mobile LIKE ?
+                OR CAST(rt.table_number AS CHAR) LIKE ?
+            )
+        `);
+        params.push(searchValue, searchValue, searchValue, searchValue);
+    }
+
+    if (status) {
+        const allowedStatuses = [
+            "Pending",
+            "Preparing",
+            "Ready",
+            "Served",
+            "Cancelled",
+        ];
+        if (!allowedStatuses.includes(status)) {
+            throw new AppError("Invalid order status", 400);
+        }
+        conditions.push("o.status = ?");
+        params.push(status);
+    }
+
+    if (orderMode) {
+        if (!["DineIn", "Takeaway"].includes(orderMode)) {
+            throw new AppError("Invalid order mode", 400);
+        }
+        conditions.push("o.order_mode = ?");
+        params.push(orderMode);
+    }
+
+    if (orderType) {
+        if (!["New", "Additional"].includes(orderType)) {
+            throw new AppError("Invalid order type", 400);
+        }
+        conditions.push("o.order_type = ?");
+        params.push(orderType);
+    }
+
+    const whereClause = conditions.length
+        ? `WHERE ${conditions.join(" AND ")}`
+        : "";
+
+    const orders = await db.query(
+        `
+        SELECT
+            o.id,
+            o.order_number,
+            o.session_id,
+            o.order_type,
+            o.order_mode,
+            o.status,
+            o.total,
+            o.notes,
+            o.created_at,
+            o.updated_at,
+            ts.customer_id,
+            ts.table_id,
+            c.name AS customer_name,
+            c.mobile AS customer_mobile,
+            rt.table_number
+        FROM orders o
+        LEFT JOIN table_sessions ts ON ts.id = o.session_id
+        LEFT JOIN customers c ON c.id = ts.customer_id
+        LEFT JOIN restaurant_tables rt ON rt.id = ts.table_id
+        ${whereClause}
+        ORDER BY o.created_at DESC
+        LIMIT 5000
+        `,
+        params,
+    );
+
+    const items = [];
+    for (const order of orders) {
+        const orderItems = await db.query(
+            `
+            SELECT
+                oi.id,
+                oi.order_id,
+                oi.menu_item_id,
+                m.name,
+                oi.quantity,
+                oi.price,
+                oi.subtotal
+            FROM order_items oi
+            INNER JOIN menu_items m ON m.id = oi.menu_item_id
+            WHERE oi.order_id = ?
+            ORDER BY oi.id ASC
+            `,
+            [order.id],
+        );
+
+        orderItems.forEach((item) => {
+            items.push({
+                ...item,
+                order_number: order.order_number,
+                customer_name: order.customer_name,
+            });
+        });
+    }
+
+    return { orders, items };
+};
+
+
 const updateOrderStatus = async (orderId, status) => {
 
     const allowedStatuses = [
@@ -1128,6 +1251,607 @@ const updateOrderStatus = async (orderId, status) => {
     return updatedOrder;
 };
 
+const createManagerAssistedOrder = async ({
+    managerUserId,
+    orderMode,
+    tableId,
+    customerMode = "walkin",
+    customerId,
+    customerName,
+    customerMobile,
+    items,
+    notes
+}) => {
+    const normalizedMode = String(orderMode || "").trim();
+
+    const normalizedCustomerMode =
+        String(customerMode || "walkin").toLowerCase();
+
+    if (!["DineIn", "Takeaway"].includes(normalizedMode)) {
+        throw new AppError(
+            "Order mode must be DineIn or Takeaway",
+            400
+        );
+    }
+
+    if (!Array.isArray(items) || items.length === 0) {
+        throw new AppError(
+            "Order must contain at least one item",
+            400
+        );
+    }
+
+    if (!managerUserId) {
+        throw new AppError(
+            "Manager authentication is required",
+            401
+        );
+    }
+
+    const connection = await db.getConnection();
+
+    try {
+        await connection.beginTransaction();
+
+        // -------------------------------------------------
+        // 1. CUSTOMER
+        // -------------------------------------------------
+
+        let customer;
+
+        if (normalizedCustomerMode === "existing") {
+
+            const parsedCustomerId = Number(customerId);
+
+            if (
+                !Number.isInteger(parsedCustomerId) ||
+                parsedCustomerId <= 0
+            ) {
+                throw new AppError(
+                    "A valid existing customer is required",
+                    400
+                );
+            }
+
+            const [customerRows] =
+                await connection.query(
+                    `SELECT id, name, mobile
+                     FROM customers
+                     WHERE id = ?
+                     LIMIT 1`,
+                    [parsedCustomerId]
+                );
+
+            if (!customerRows.length) {
+                throw new AppError(
+                    "Customer not found",
+                    404
+                );
+            }
+
+            customer = customerRows[0];
+
+        } else if (normalizedCustomerMode === "walkin") {
+
+            const name =
+                String(
+                    customerName ||
+                    "Walk-in Customer"
+                ).trim() ||
+                "Walk-in Customer";
+
+            const mobile =
+                normalizeMobile(customerMobile);
+
+            if (
+                mobile &&
+                !/^[6-9]\d{9}$/.test(mobile)
+            ) {
+                throw new AppError(
+                    "Enter a valid Indian mobile number",
+                    400
+                );
+            }
+
+            if (mobile) {
+
+                const [existingRows] =
+                    await connection.query(
+                        `SELECT id, name, mobile
+                         FROM customers
+                         WHERE mobile = ?
+                         LIMIT 1`,
+                        [mobile]
+                    );
+
+                if (existingRows.length) {
+
+                    customer =
+                        existingRows[0];
+
+                    if (
+                        name !==
+                        customer.name
+                    ) {
+
+                        await connection.query(
+                            `UPDATE customers
+                             SET name = ?
+                             WHERE id = ?`,
+                            [
+                                name,
+                                customer.id
+                            ]
+                        );
+
+                        customer.name = name;
+                    }
+                }
+            }
+
+            if (!customer) {
+
+                const [
+                    customerResult
+                ] = await connection.query(
+                    `INSERT INTO customers
+                     (name, mobile)
+                     VALUES (?, ?)`,
+                    [
+                        name,
+                        mobile || null
+                    ]
+                );
+
+                customer = {
+                    id:
+                        customerResult.insertId,
+                    name,
+                    mobile:
+                        mobile || null
+                };
+            }
+
+        } else {
+
+            throw new AppError(
+                "Invalid customer mode",
+                400
+            );
+        }
+
+        // -------------------------------------------------
+        // 2. TABLE
+        // -------------------------------------------------
+
+        let table = null;
+
+        if (normalizedMode === "DineIn") {
+
+            const parsedTableId =
+                Number(tableId);
+
+            if (
+                !Number.isInteger(
+                    parsedTableId
+                ) ||
+                parsedTableId <= 0
+            ) {
+                throw new AppError(
+                    "A table is required for dine-in orders",
+                    400
+                );
+            }
+
+            const [tableRows] =
+                await connection.query(
+                    `SELECT
+                        id,
+                        table_number,
+                        status
+                     FROM restaurant_tables
+                     WHERE id = ?
+                     LIMIT 1`,
+                    [parsedTableId]
+                );
+
+            if (!tableRows.length) {
+                throw new AppError(
+                    "Table not found",
+                    404
+                );
+            }
+
+            table = tableRows[0];
+
+            if (!table.status) {
+                throw new AppError(
+                    "This table is currently unavailable",
+                    400
+                );
+            }
+        }
+
+        // -------------------------------------------------
+        // 3. SESSION
+        // -------------------------------------------------
+
+        let session;
+
+        if (normalizedMode === "DineIn") {
+
+            const [sessionRows] =
+                await connection.query(
+                    `SELECT
+                        id,
+                        session_token,
+                        customer_id,
+                        table_id
+                     FROM table_sessions
+                     WHERE customer_id = ?
+                       AND table_id = ?
+                       AND session_type = 'DineIn'
+                       AND is_active = 1
+                     LIMIT 1`,
+                    [
+                        customer.id,
+                        table.id
+                    ]
+                );
+
+            if (sessionRows.length) {
+
+                session =
+                    sessionRows[0];
+
+            } else {
+
+                const sessionToken =
+                    uuid();
+
+                const [
+                    sessionResult
+                ] = await connection.query(
+                    `INSERT INTO table_sessions
+                     (
+                        session_token,
+                        customer_id,
+                        table_id,
+                        session_type,
+                        is_active
+                     )
+                     VALUES (?, ?, ?, 'DineIn', 1)`,
+                    [
+                        sessionToken,
+                        customer.id,
+                        table.id
+                    ]
+                );
+
+                session = {
+                    id:
+                        sessionResult.insertId,
+                    session_token:
+                        sessionToken,
+                    customer_id:
+                        customer.id,
+                    table_id:
+                        table.id
+                };
+            }
+
+        } else {
+
+            const sessionToken =
+                uuid();
+
+            const [
+                sessionResult
+            ] = await connection.query(
+                `INSERT INTO table_sessions
+                 (
+                    session_token,
+                    customer_id,
+                    table_id,
+                    session_type,
+                    is_active
+                 )
+                 VALUES (?, ?, NULL, 'Takeaway', 1)`,
+                [
+                    sessionToken,
+                    customer.id
+                ]
+            );
+
+            session = {
+                id:
+                    sessionResult.insertId,
+                session_token:
+                    sessionToken,
+                customer_id:
+                    customer.id,
+                table_id: null
+            };
+        }
+
+        // -------------------------------------------------
+        // 4. ORDER TYPE
+        // -------------------------------------------------
+
+        const [activeOrders] =
+            await connection.query(
+                `SELECT id
+                 FROM orders
+                 WHERE session_id = ?
+                   AND status IN
+                     ('Pending', 'Preparing', 'Ready')
+                 LIMIT 1`,
+                [session.id]
+            );
+
+        const orderType =
+            activeOrders.length > 0
+                ? "Additional"
+                : "New";
+
+        // -------------------------------------------------
+        // 5. MENU ITEMS + SERVER PRICES
+        // -------------------------------------------------
+
+        const normalizedItems = [];
+
+        for (const item of items) {
+
+            const menuId =
+                Number(item?.menu_id);
+
+            const quantity =
+                Number(item?.quantity);
+
+            if (
+                !Number.isInteger(menuId) ||
+                menuId <= 0
+            ) {
+                throw new AppError(
+                    "Invalid menu item",
+                    400
+                );
+            }
+
+            if (
+                !Number.isInteger(quantity) ||
+                quantity <= 0
+            ) {
+                throw new AppError(
+                    "Quantity must be at least 1",
+                    400
+                );
+            }
+
+            const [menuRows] =
+                await connection.query(
+                    `SELECT
+                        id,
+                        name,
+                        price,
+                        is_available
+                     FROM menu_items
+                     WHERE id = ?
+                     LIMIT 1`,
+                    [menuId]
+                );
+
+            if (!menuRows.length) {
+                throw new AppError(
+                    `Menu item ${menuId} not found`,
+                    404
+                );
+            }
+
+            const menuItem =
+                menuRows[0];
+
+            if (!menuItem.is_available) {
+                throw new AppError(
+                    `${menuItem.name} is currently unavailable`,
+                    400
+                );
+            }
+
+            const price =
+                Number(menuItem.price);
+
+            normalizedItems.push({
+                menuId:
+                    menuItem.id,
+                name:
+                    menuItem.name,
+                quantity,
+                price,
+                subtotal:
+                    price * quantity
+            });
+        }
+
+        const total =
+            normalizedItems.reduce(
+                (sum, item) =>
+                    sum + item.subtotal,
+                0
+            );
+
+        // -------------------------------------------------
+        // 6. CREATE ORDER
+        // -------------------------------------------------
+
+        const orderNumber =
+            generateOrderNumber();
+
+        const orderNotes =
+            String(notes || "").trim() ||
+            null;
+
+        const [orderResult] =
+            await connection.query(
+                `INSERT INTO orders
+                (
+                    order_number,
+                    session_id,
+                    order_type,
+                    order_mode,
+                    customer_id,
+                    table_id,
+                    status,
+                    total,
+                    notes,
+                    estimated_ready_time,
+                    created_by_user_id
+                )
+                VALUES
+                (
+                    ?, ?, ?, ?, ?, ?,
+                    'Pending', ?, ?, 15, ?
+                )`,
+                [
+                    orderNumber,
+                    session.id,
+                    orderType,
+                    normalizedMode,
+                    customer.id,
+                    table?.id || null,
+                    total,
+                    orderNotes,
+                    managerUserId
+                ]
+            );
+
+        const orderId =
+            orderResult.insertId;
+
+        // -------------------------------------------------
+        // 7. ORDER ITEMS
+        // -------------------------------------------------
+
+        for (
+            const item of normalizedItems
+        ) {
+
+            await connection.query(
+                `INSERT INTO order_items
+                 (
+                    order_id,
+                    menu_item_id,
+                    quantity,
+                    price,
+                    subtotal
+                 )
+                 VALUES (?, ?, ?, ?, ?)`,
+                [
+                    orderId,
+                    item.menuId,
+                    item.quantity,
+                    item.price,
+                    item.subtotal
+                ]
+            );
+        }
+
+        // -------------------------------------------------
+        // 8. RETURN COMPLETE ORDER
+        // -------------------------------------------------
+
+        const [orderRows] =
+            await connection.query(
+                `SELECT
+                    o.id,
+                    o.order_number,
+                    o.session_id,
+                    o.order_type,
+                    o.order_mode,
+                    o.customer_id,
+                    o.table_id,
+                    o.status,
+                    o.total,
+                    o.notes,
+                    o.estimated_ready_time,
+                    o.preparing_at,
+                    o.ready_at,
+                    o.created_at,
+                    o.updated_at,
+                    o.created_by_user_id,
+
+                    c.name AS customer_name,
+                    c.mobile AS customer_mobile,
+
+                    rt.table_number
+
+                 FROM orders o
+
+                 LEFT JOIN customers c
+                    ON c.id = o.customer_id
+
+                 LEFT JOIN restaurant_tables rt
+                    ON rt.id = o.table_id
+
+                 WHERE o.id = ?
+
+                 LIMIT 1`,
+                [orderId]
+            );
+
+        const [orderItems] =
+            await connection.query(
+                `SELECT
+                    oi.id,
+                    oi.menu_item_id,
+                    m.name,
+                    oi.quantity,
+                    oi.price,
+                    oi.subtotal
+
+                 FROM order_items oi
+
+                 INNER JOIN menu_items m
+                    ON m.id = oi.menu_item_id
+
+                 WHERE oi.order_id = ?
+
+                 ORDER BY oi.id ASC`,
+                [orderId]
+            );
+
+        await connection.commit();
+
+        const completeOrder = {
+            ...orderRows[0],
+            items: orderItems
+        };
+
+        // Kitchen notification
+        try {
+            emitNewOrder(
+                completeOrder
+            );
+        } catch (socketError) {
+            console.error(
+                "Failed to emit assisted order:",
+                socketError
+            );
+        }
+
+        return completeOrder;
+
+    } catch (error) {
+
+        await connection.rollback();
+        throw error;
+
+    } finally {
+
+        connection.release();
+    }
+};
+
 module.exports = {
     createOrder,
     getCurrentOrders,
@@ -1136,6 +1860,8 @@ module.exports = {
     // ADMIN ROUTES 
     getAdminOrders,
     getAdminOrderById,
-    updateOrderStatus
+    updateOrderStatus,
+    getOrdersForExport,
+    createManagerAssistedOrder
 
 };

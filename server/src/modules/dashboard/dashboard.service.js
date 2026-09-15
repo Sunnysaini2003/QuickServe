@@ -463,70 +463,74 @@ const getSalesOverview = async (
 */
 
 const getRecentOrders = async () => {
+    const [orders] = await db.query(`
+        SELECT
+            o.id,
+            o.order_number,
+            o.order_mode,
+            o.order_type,
+            o.status,
+            o.total,
+            o.created_at,
 
-    const [orders] =
-        await db.query(`
+            COALESCE(
+                c_order.name,
+                c_session.name
+            ) AS customer_name,
 
-            SELECT
+            COALESCE(
+                rt_order.table_number,
+                rt_session.table_number
+            ) AS table_number
 
-                o.id,
+        FROM orders o
 
-                o.order_number,
+        LEFT JOIN customers c_order
+            ON c_order.id = o.customer_id
 
-                o.order_mode,
+        LEFT JOIN restaurant_tables rt_order
+            ON rt_order.id = o.table_id
 
-                o.order_type,
+        LEFT JOIN table_sessions ts
+            ON ts.id = o.session_id
 
-                o.status,
+        LEFT JOIN customers c_session
+            ON c_session.id = ts.customer_id
 
-                o.total,
+        LEFT JOIN restaurant_tables rt_session
+            ON rt_session.id = ts.table_id
 
-                o.created_at,
+        ORDER BY o.created_at DESC
 
-                c.name AS customer_name
+        LIMIT 10
+    `);
 
-            FROM orders o
+    return orders.map((order) => ({
+        id: order.id,
 
-            LEFT JOIN customers c
-                ON c.id = o.customer_id
+        order_number: order.order_number,
 
-            ORDER BY
-                o.created_at DESC
+        customer:
+            order.customer_name ||
+            "Walk-in Customer",
 
-            LIMIT 10
+        type:
+            order.order_mode ||
+            order.order_type ||
+            "DineIn",
 
-        `);
+        amount:
+            Number(order.total || 0),
 
+        status:
+            order.status,
 
-    return orders.map(
-        (order) => ({
+        created_at:
+            order.created_at,
 
-            id:
-                order.id,
-
-            order_number:
-                order.order_number,
-
-            customer:
-                order.customer_name ||
-                "Walk-in Customer",
-
-            type:
-                order.order_mode,
-
-            amount:
-                Number(
-                    order.total || 0
-                ),
-
-            status:
-                order.status,
-
-            created_at:
-                order.created_at
-
-        })
-    );
+        table_number:
+            order.table_number || null,
+    }));
 };
 
 

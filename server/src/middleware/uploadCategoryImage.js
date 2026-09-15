@@ -6,11 +6,7 @@ const fs = require("fs");
 // UPLOAD DIRECTORY
 
 
-const uploadDir = path.join(
-    process.cwd(),
-    "uploads",
-    "categories"
-);
+const uploadDir = path.resolve(__dirname, "../../uploads/categories");
 
 if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, {

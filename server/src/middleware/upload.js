@@ -8,11 +8,7 @@ const fs = require("fs");
 
 const createImageUpload = (folder, prefix) => {
 
-    const uploadDir = path.join(
-        process.cwd(),
-        "uploads",
-        folder
-    );
+    const uploadDir = path.resolve(__dirname, "../../uploads", folder);
 
     // Create directory if it doesn't exist
     if (!fs.existsSync(uploadDir)) {

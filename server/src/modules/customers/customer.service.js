@@ -574,9 +574,66 @@ const loginCustomer = async ({
     };
 };
 
+const searchManagerCustomers = async ({
+    search = "",
+    limit = 20
+}) => {
+
+    const normalizedSearch =
+        String(search || "").trim();
+
+    const currentLimit =
+        Math.min(
+            Math.max(
+                Number(limit) || 20,
+                1
+            ),
+            50
+        );
+
+    const params = [];
+    const conditions = [];
+
+    if (normalizedSearch) {
+
+        const value =
+            `%${normalizedSearch}%`;
+
+        conditions.push(
+            "(name LIKE ? OR mobile LIKE ?)"
+        );
+
+        params.push(
+            value,
+            value
+        );
+    }
+
+    const whereClause =
+        conditions.length
+            ? `WHERE ${conditions.join(" AND ")}`
+            : "";
+
+    return await db.query(
+        `SELECT
+            id,
+            name,
+            mobile,
+            created_at
+         FROM customers
+         ${whereClause}
+         ORDER BY
+            name ASC,
+            id DESC
+         LIMIT ${currentLimit}`,
+        params
+    );
+};
+
 module.exports = {
     createCustomerSession,
     createTakeawaySession,
     registerCustomer,
-    loginCustomer
+    loginCustomer,
+    searchManagerCustomers
 };

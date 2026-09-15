@@ -6,49 +6,41 @@ const authController = require("./auth.controller");
 
 const {
     registerValidation,
-    loginValidation
+    loginValidation,
 } = require("./auth.validation");
 
 const validate = require("../../middleware/validate");
 
-const {
-    authenticate
-} = require("./auth.middleware");
-
-
-
-// REGISTER
-
+const { authenticate } = require("./auth.middleware");
 
 router.post(
     "/register",
     registerValidation,
     validate,
-    authController.register
+    authController.register,
 );
-
-
-
-// LOGIN
-
 
 router.post(
     "/login",
     loginValidation,
     validate,
-    authController.login
+    authController.login,
 );
 
+router.post(
+    "/refresh",
+    authController.refresh,
+);
 
-
-// CURRENT USER
-
+router.post(
+    "/logout",
+    authController.logout,
+);
 
 router.get(
     "/me",
     authenticate,
-    authController.me
+    authController.me,
 );
-
 
 module.exports = router;
