@@ -11,13 +11,6 @@ const createOrder = async (req, res, next) => {
       notes: req.body.notes,
     });
 
-    // Send new order to kitchen
-    const io = req.app.get("io");
-
-    if (io) {
-      io.to("kitchen").emit("new_order", order);
-    }
-
     return success(res, "Order placed successfully", order, 201);
   } catch (error) {
     next(error);
@@ -172,19 +165,6 @@ const updateManagerOrderStatus = async (req, res, next) => {
       req.body.status,
     );
 
-    const io = req.app.get("io");
-
-    if (io) {
-      if (order.session_id) {
-        io.to(`session_${order.session_id}`).emit(
-          "order_status_updated",
-          order,
-        );
-      }
-
-      io.to("kitchen").emit("order_status_updated", order);
-    }
-
     return success(res, "Manager order status updated successfully", order);
   } catch (error) {
     next(error);
@@ -197,19 +177,6 @@ const updateAdminOrderStatus = async (req, res, next) => {
       req.params.id,
       req.body.status,
     );
-
-    const io = req.app.get("io");
-
-    if (io) {
-      if (order.session_id) {
-        io.to(`session_${order.session_id}`).emit(
-          "order_status_updated",
-          order,
-        );
-      }
-
-      io.to("kitchen").emit("order_status_updated", order);
-    }
 
     return success(res, "Order status updated successfully", order);
   } catch (error) {

@@ -5,6 +5,10 @@
       "destination": "https://quickserve-api-1uhl.onrender.com/api/:path*"
     },
     {
+      "source": "/socket.io/:path*",
+      "destination": "https://quickserve-api-1uhl.onrender.com/socket.io/:path*"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
