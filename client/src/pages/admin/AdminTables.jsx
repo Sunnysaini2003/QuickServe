@@ -14,6 +14,16 @@ const API_URL = (
   import.meta.env.VITE_API_URL || "http://localhost:5000"
 ).replace(/\/+$/, "");
 
+const QR_API_BASE = import.meta.env.PROD ? "" : API_URL;
+
+const getDynamicQrUrl = (qrToken) => {
+  if (!qrToken) {
+    return null;
+  }
+
+  return `${QR_API_BASE}/api/tables/token/${encodeURIComponent(qrToken)}/qr`;
+};
+
 // IMAGE URL
 
 const getImageUrl = (image) => {
@@ -304,23 +314,21 @@ const AdminTables = () => {
   // QR
 
   const openQrModal = (table) => {
-    const imageUrl = getImageUrl(table.qr_image);
+    const imageUrl = getDynamicQrUrl(table?.qr_token);
 
     if (!imageUrl) {
-      setError("QR image is not available for this table.");
+      setError("QR token is not available for this table.");
 
       return;
     }
 
     setSelectedQr({
       tableNumber: table.table_number,
-
       imageUrl,
     });
 
     setShowQrModal(true);
   };
-
   // CLOSE QR
 
   const closeQrModal = () => {
@@ -449,7 +457,7 @@ const AdminTables = () => {
                 {filteredTables.map((table) => {
                   const active = toBoolean(table.status);
 
-                  const qrImage = getImageUrl(table.qr_image);
+                  const qrImage = getDynamicQrUrl(table.qr_token);
 
                   return (
                     <tr key={table.id}>

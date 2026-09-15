@@ -28,6 +28,17 @@ router.get(
 );
 
 
+// Get QR image dynamically from QR token
+//
+// This avoids depending on Render's local filesystem
+// for the Admin QR preview.
+//
+router.get(
+    "/token/:token/qr",
+    tableController.getTableQr
+);
+
+
 // ADMIN ROUTES
 
 
@@ -38,6 +49,7 @@ router.get(
     tableController.getAllTables
 );
 
+
 // Get table by ID
 router.get(
     "/:id",
@@ -46,6 +58,7 @@ router.get(
     validate,
     tableController.getTableById
 );
+
 
 // Create table
 router.post(
@@ -56,6 +69,7 @@ router.post(
     tableController.createTable
 );
 
+
 // Update table
 router.put(
     "/:id",
@@ -64,6 +78,7 @@ router.put(
     validate,
     tableController.updateTable
 );
+
 
 // Update table status
 router.patch(
@@ -74,6 +89,7 @@ router.patch(
     tableController.updateTableStatus
 );
 
+
 // Delete table
 router.delete(
     "/:id",
@@ -82,5 +98,6 @@ router.delete(
     validate,
     tableController.deleteTable
 );
+
 
 module.exports = router;

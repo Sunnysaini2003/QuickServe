@@ -23,15 +23,11 @@ const TableLanding = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
-  
   // TABLE
-  
 
   const [table, setTable] = useState(null);
 
-  
   // CUSTOMER
-  
 
   const [name, setName] = useState("");
   const [mobile, setMobile] = useState("");
@@ -40,38 +36,28 @@ const TableLanding = () => {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
-  
   // UI MODE
-  
 
   const [mode, setMode] = useState("choice");
 
-  
   // PASSWORD VISIBILITY
-  
 
   const [showPassword, setShowPassword] = useState(false);
 
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  
   // CUSTOMER
-  
 
   const [customer, setCustomer] = useState(null);
 
-  
   // PAGE STATE
-  
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
   const [error, setError] = useState("");
 
-  
   // GET TABLE TOKEN
-  
 
   const getTableToken = () => {
     const tableToken = searchParams.get("table");
@@ -81,9 +67,7 @@ const TableLanding = () => {
     return (tableToken || queryToken || "").trim();
   };
 
-  
   // LOAD TABLE
-  
 
   useEffect(() => {
     let mounted = true;
@@ -96,9 +80,7 @@ const TableLanding = () => {
       if (!tableToken) {
         if (mounted) {
           setTable(null);
-
           setError("Invalid QR code. Table token is missing.");
-
           setLoading(false);
         }
 
@@ -117,8 +99,18 @@ const TableLanding = () => {
           throw new Error("Unable to find table.");
         }
 
-        if (mounted) {
-          setTable(tableData);
+        if (!mounted) {
+          return;
+        }
+
+        setTable(tableData);
+
+        // Store only the validated public table context.
+        // Customer authentication remains in an HttpOnly cookie.
+        localStorage.setItem("tableToken", tableToken);
+
+        if (tableData?.id) {
+          localStorage.setItem("customerTableId", String(tableData.id));
         }
       } catch (err) {
         console.error("❌ Table loading error:", err);
@@ -147,51 +139,45 @@ const TableLanding = () => {
     };
   }, [searchParams]);
 
-  
   // CHECK EXISTING CUSTOMER
-  
 
   useEffect(() => {
-    const customerAuthToken = localStorage.getItem("customerUser");
-
     const storedCustomer = localStorage.getItem("customerUser");
 
-    if (customerAuthToken && storedCustomer) {
-      try {
-        const parsedCustomer = JSON.parse(storedCustomer);
+    if (!storedCustomer) {
+      setCustomer(null);
+      setMode("choice");
+      return;
+    }
 
-        setCustomer(parsedCustomer);
+    try {
+      const parsedCustomer = JSON.parse(storedCustomer);
 
-        setName(parsedCustomer?.name || "");
-
-        setMobile(parsedCustomer?.mobile || "");
-
-        setEmail(parsedCustomer?.email || "");
-
-        setMode("returning");
-      } catch (err) {
-        console.error("Customer storage error:", err);
-
-        localStorage.removeItem("customerUser");
-
-        setMode("choice");
+      if (!parsedCustomer || typeof parsedCustomer !== "object") {
+        throw new Error("Invalid stored customer data.");
       }
-    } else {
+
+      setCustomer(parsedCustomer);
+      setName(parsedCustomer?.name || "");
+      setMobile(parsedCustomer?.mobile || "");
+      setEmail(parsedCustomer?.email || "");
+      setMode("returning");
+    } catch (err) {
+      console.error("Customer storage error:", err);
+
+      localStorage.removeItem("customerUser");
+      setCustomer(null);
       setMode("choice");
     }
   }, []);
 
-  
   // CLEAR ERROR
-  
 
   const clearError = () => {
     setError("");
   };
 
-  
   // PASSWORD STRENGTH
-  
 
   const getPasswordStrength = () => {
     if (!password) {
@@ -245,18 +231,16 @@ const TableLanding = () => {
 
   const passwordStrength = getPasswordStrength();
 
-  
   // START TABLE SESSION
-  
 
   const startTableSession = async ({ customerName, customerMobile }) => {
-    const tableToken = getTableToken();
+    const tableToken = getTableToken() || localStorage.getItem("tableToken");
 
     if (!tableToken) {
       throw new Error("Invalid QR code. Table token is missing.");
     }
 
-    if (!customerName) {
+    if (!customerName?.trim()) {
       throw new Error("Customer name is required.");
     }
 
@@ -264,22 +248,32 @@ const TableLanding = () => {
       throw new Error("Customer mobile number is required.");
     }
 
-    const response = await createCustomerSession({
+    // The backend creates the customer/table session and sets the
+    // HttpOnly customer authentication cookie.
+    await createCustomerSession({
       table_token: tableToken,
-
-      name: customerName,
-
+      name: customerName.trim(),
       mobile: customerMobile,
     });
 
-    // The server stores the customer session JWT in an HttpOnly cookie.
-    // Keep only the public table context in localStorage.
-
-    // Current QR table
+    // Store only public table context. Never store the JWT here.
     localStorage.setItem("tableToken", tableToken);
 
     if (table?.id) {
       localStorage.setItem("customerTableId", String(table.id));
+    }
+
+    // Verify that the newly-created customer session can actually be
+    // read back through the same credentialed API path used for orders.
+    try {
+      await api.get("/customers/session");
+    } catch (sessionError) {
+      console.error("❌ Customer session verification failed:", sessionError);
+
+      throw new Error(
+        sessionError?.response?.data?.message ||
+          "Your customer session could not be verified. Please scan the table QR again.",
+      );
     }
 
     navigate("/customer/menu", {
@@ -287,9 +281,7 @@ const TableLanding = () => {
     });
   };
 
-  
   // RETURNING CUSTOMER
-  
 
   const handleReturningCustomer = async () => {
     clearError();
@@ -321,9 +313,7 @@ const TableLanding = () => {
     }
   };
 
-  
   // LOGIN
-  
 
   const handleCustomerLogin = async (event) => {
     event.preventDefault();
@@ -392,9 +382,7 @@ const TableLanding = () => {
     }
   };
 
-  
   // REGISTER
-  
 
   const handleCustomerRegister = async (event) => {
     event.preventDefault();
@@ -489,9 +477,7 @@ const TableLanding = () => {
     }
   };
 
-  
   // GUEST
-  
 
   const handleGuestOrdering = async (event) => {
     event.preventDefault();
@@ -536,9 +522,7 @@ const TableLanding = () => {
     }
   };
 
-  
   // LOGOUT
-  
 
   const handleAccountLogout = async () => {
     try {
@@ -578,9 +562,7 @@ const TableLanding = () => {
     clearError();
   };
 
-  
   // CHOICE
-  
 
   const goToChoice = () => {
     clearError();
@@ -596,17 +578,13 @@ const TableLanding = () => {
     setMode("choice");
   };
 
-  
   // LOADING
-  
 
   if (loading) {
     return <CustomerLoader message="Finding your table..." />;
   }
 
-  
   // TABLE ERROR
-  
 
   if (error && !table) {
     return (
@@ -630,17 +608,13 @@ const TableLanding = () => {
     );
   }
 
-  
   // SUBMITTING
-  
 
   if (submitting) {
     return <CustomerLoader message="Preparing your table..." />;
   }
 
-  
   // MAIN
-  
 
   return (
     <main className="table-landing-page">

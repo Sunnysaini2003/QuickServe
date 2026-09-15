@@ -54,9 +54,6 @@ const Menu = () => {
   // CART
   // =======================================================
 
-  // Keep the cart on the device so a normal page refresh does not
-  // wipe items. The key is scoped to the active table QR token so
-  // one table can never inherit another table's cart.
   const tableToken =
     typeof window !== "undefined"
       ? localStorage.getItem("tableToken") || ""
@@ -64,63 +61,33 @@ const Menu = () => {
 
   const cartStorageKey = tableToken
     ? `quickserve_cart_${tableToken}`
-    : "quickserve_cart_unknown";
+    : "quickserve_cart";
 
   const [cart, setCart] = useState(() => {
-    if (typeof window === "undefined" || !tableToken) {
-      return [];
-    }
-
     try {
-      const stored = localStorage.getItem(cartStorageKey);
+      const storedCart = localStorage.getItem(cartStorageKey);
 
-      if (!stored) {
+      if (!storedCart) {
         return [];
       }
 
-      const parsed = JSON.parse(stored);
+      const parsedCart = JSON.parse(storedCart);
 
-      if (!Array.isArray(parsed)) {
-        localStorage.removeItem(cartStorageKey);
+      if (!Array.isArray(parsedCart)) {
         return [];
       }
 
-      return parsed.filter(
-        (item) =>
-          item &&
-          Number(item.id) > 0 &&
-          Number(item.quantity) > 0,
+      return parsedCart.filter(
+        (item) => item && item.id != null && Number(item.quantity) > 0,
       );
     } catch (error) {
-      console.warn("QuickServe cart restore failed:", error);
-      localStorage.removeItem(cartStorageKey);
+      console.warn("Unable to restore customer cart:", error);
+
       return [];
     }
   });
 
   const [isCartOpen, setIsCartOpen] = useState(false);
-
-  // Persist every cart change. This intentionally stores cart data only;
-  // authentication tokens remain HttpOnly cookies.
-  useEffect(() => {
-    if (!tableToken) {
-      return;
-    }
-
-    try {
-      if (cart.length === 0) {
-        localStorage.removeItem(cartStorageKey);
-        return;
-      }
-
-      localStorage.setItem(
-        cartStorageKey,
-        JSON.stringify(cart),
-      );
-    } catch (error) {
-      console.warn("QuickServe cart persistence failed:", error);
-    }
-  }, [cart, cartStorageKey, tableToken]);
 
   // =======================================================
   // ORDER
@@ -150,20 +117,25 @@ const Menu = () => {
       try {
         await api.get("/customers/session");
       } catch (err) {
-        if (!mounted || err?.response?.status !== 401) {
+        if (!mounted) {
           return;
         }
 
-        // Return to the same table QR entry point instead of the
-        // bare home page, so mobile customers do not see "Invalid QR"
-        // after an expired/missing customer session.
-        if (tableToken) {
-          navigate(
-            `/?table=${encodeURIComponent(tableToken)}`,
-            { replace: true },
+        if (err?.response?.status === 401 || err?.response?.status === 404) {
+          const currentTableToken = localStorage.getItem("tableToken");
+
+          setError(
+            err?.response?.data?.message ||
+              "Your customer session is not available. Please scan the table QR again.",
           );
-        } else {
-          navigate("/", { replace: true });
+
+          if (currentTableToken) {
+            navigate(`/?table=${encodeURIComponent(currentTableToken)}`, {
+              replace: true,
+            });
+          } else {
+            navigate("/", { replace: true });
+          }
         }
       }
     };
@@ -173,7 +145,16 @@ const Menu = () => {
     return () => {
       mounted = false;
     };
-  }, [navigate, tableToken]);
+  }, [navigate]);
+
+  // Persist cart so a browser refresh does not remove the customer's items.
+  useEffect(() => {
+    try {
+      localStorage.setItem(cartStorageKey, JSON.stringify(cart));
+    } catch (error) {
+      console.warn("Unable to save customer cart:", error);
+    }
+  }, [cart, cartStorageKey]);
 
   // CUSTOMER REAL-TIME ORDER STATUS
 
@@ -471,8 +452,6 @@ const Menu = () => {
             "Your customer session is not available. Please scan the table QR again.",
         );
 
-        // Keep the cart intact on an auth/network failure.
-        // The customer should not lose their selected items.
         setIsCartOpen(false);
         return;
       }
@@ -510,15 +489,18 @@ const Menu = () => {
       console.warn("Customer cookie logout failed:", error);
     }
 
+    // Remove the current table-scoped cart before clearing the table context.
+    try {
+      localStorage.removeItem(cartStorageKey);
+    } catch (error) {
+      console.warn("Unable to clear customer cart storage:", error);
+    }
+
     localStorage.removeItem("customerAuthToken");
     localStorage.removeItem("customerUser");
     localStorage.removeItem("customerToken");
     localStorage.removeItem("tableToken");
     localStorage.removeItem("customerTableId");
-
-    if (tableToken) {
-      localStorage.removeItem(cartStorageKey);
-    }
 
     setCart([]);
     setOrderSuccess(null);
