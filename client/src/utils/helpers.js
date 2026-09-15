@@ -14,17 +14,18 @@ export const getImageUrl = (image) => {
     const path = image.trim();
     if (!path) return null;
 
-    // Immediately return if it's already a full URL or base64 data
-    if (/^(https?:\/\/|data:)/.test(path)) return path;
+    // Full URL or base64
+    if (/^(https?:\/\/|data:)/.test(path)) {
+        return path;
+    }
 
-    // Strip leading slashes to prevent double slashes in the URL
+    // Remove leading slashes
     const cleanPath = path.replace(/^\/+/, "");
 
     if (cleanPath.startsWith("uploads/")) {
         return `${API_URL}/${cleanPath}`;
     }
 
-    // Fallback for menu items
     return `${API_URL}/uploads/menu/${cleanPath}`;
 };
 
