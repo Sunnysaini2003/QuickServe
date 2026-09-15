@@ -371,12 +371,16 @@ const Menu = () => {
       setIsCartOpen(false);
     } catch (err) {
       if (err?.response?.status === 401) {
-        navigate("/", {
-          replace: true,
-        });
+    console.error("Order authentication failed:", err);
 
-        return;
-      }
+    setError(
+        err?.response?.data?.message ||
+        "Your customer session is not available. Please scan the table QR again."
+    );
+
+    setIsCartOpen(false);
+    return;
+}
 
       if (err?.response?.status === 404) {
         setError(
