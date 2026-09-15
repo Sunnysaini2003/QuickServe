@@ -1,0 +1,347 @@
+/* =======
+   QUICKSERVE CUSTOMER LOADER
+   MOBILE FIRST
+======= */
+
+.customer-loader {
+    position: fixed;
+    inset: 0;
+
+    z-index: 9999;
+
+    width: 100%;
+    height: 100dvh;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    padding: 24px;
+
+    background:
+        radial-gradient(
+            circle at 50% 35%,
+            rgba(255, 255, 255, 1) 0%,
+            rgba(247, 247, 248, 1) 65%,
+            rgba(241, 241, 243, 1) 100%
+        );
+
+    overflow: hidden;
+}
+
+
+/* =======
+   CONTENT
+======= */
+
+.customer-loader-content {
+    width: 100%;
+    max-width: 320px;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+
+    text-align: center;
+
+    animation: loaderContentIn 0.45s ease-out;
+}
+
+
+/* =======
+   LOADER ICON
+======= */
+
+.customer-loader-icon {
+    position: relative;
+
+    width: 110px;
+    height: 110px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    margin-bottom: 26px;
+}
+
+
+/* =======
+   PLATE
+======= */
+
+.loader-plate {
+    position: relative;
+    z-index: 3;
+
+    width: 68px;
+    height: 68px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 50%;
+
+    background: #ffffff;
+
+    box-shadow:
+        0 12px 35px rgba(0, 0, 0, 0.10),
+        inset 0 0 0 1px rgba(0, 0, 0, 0.06);
+
+    animation: platePulse 1.8s ease-in-out infinite;
+}
+
+
+.loader-plate span {
+    display: block;
+
+    font-size: 31px;
+
+    animation: foodFloat 1.8s ease-in-out infinite;
+}
+
+
+/* =======
+   RINGS
+======= */
+
+.loader-ring {
+    position: absolute;
+
+    border-radius: 50%;
+
+    border: 1.5px solid rgba(0, 0, 0, 0.10);
+
+    animation: ringExpand 2.2s ease-out infinite;
+}
+
+
+.loader-ring-outer {
+    width: 108px;
+    height: 108px;
+
+    animation-delay: 0.7s;
+}
+
+
+.loader-ring-middle {
+    width: 88px;
+    height: 88px;
+
+    animation-delay: 0s;
+}
+
+
+/* =======
+   BRAND
+======= */
+
+.customer-loader-brand {
+    color: #181818;
+
+    font-size: 27px;
+    font-weight: 800;
+
+    line-height: 1.1;
+
+    letter-spacing: -0.8px;
+}
+
+
+.customer-loader-brand span {
+    font-weight: 500;
+}
+
+
+/* =======
+   MESSAGE
+======= */
+
+.customer-loader-message {
+    margin: 9px 0 0;
+
+    color: #777777;
+
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+
+/* =======
+   DOTS
+======= */
+
+.customer-loader-dots {
+    display: flex;
+
+    align-items: center;
+
+    gap: 6px;
+
+    margin-top: 17px;
+}
+
+
+.customer-loader-dots span {
+    width: 6px;
+    height: 6px;
+
+    border-radius: 50%;
+
+    background: #222222;
+
+    animation: loaderDot 1.2s ease-in-out infinite;
+}
+
+
+.customer-loader-dots span:nth-child(2) {
+    animation-delay: 0.15s;
+}
+
+
+.customer-loader-dots span:nth-child(3) {
+    animation-delay: 0.3s;
+}
+
+
+/* =======
+   ANIMATIONS
+======= */
+
+@keyframes platePulse {
+
+    0%,
+    100% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.06);
+    }
+}
+
+
+@keyframes foodFloat {
+
+    0%,
+    100% {
+        transform:
+            translateY(0)
+            rotate(0deg);
+    }
+
+    50% {
+        transform:
+            translateY(-4px)
+            rotate(-5deg);
+    }
+}
+
+
+@keyframes ringExpand {
+
+    0% {
+        opacity: 0.7;
+        transform: scale(0.72);
+    }
+
+    70% {
+        opacity: 0.15;
+    }
+
+    100% {
+        opacity: 0;
+        transform: scale(1.15);
+    }
+}
+
+
+@keyframes loaderDot {
+
+    0%,
+    60%,
+    100% {
+        opacity: 0.25;
+        transform: translateY(0);
+    }
+
+    30% {
+        opacity: 1;
+        transform: translateY(-4px);
+    }
+}
+
+
+@keyframes loaderContentIn {
+
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+
+/* =======
+   TABLET / DESKTOP
+======= */
+
+@media (min-width: 600px) {
+
+    .customer-loader-content {
+        max-width: 360px;
+    }
+
+    .customer-loader-icon {
+        width: 120px;
+        height: 120px;
+    }
+
+    .loader-plate {
+        width: 74px;
+        height: 74px;
+    }
+
+    .loader-ring-outer {
+        width: 118px;
+        height: 118px;
+    }
+
+    .loader-ring-middle {
+        width: 96px;
+        height: 96px;
+    }
+
+}
+
+
+/* =======
+   REDUCED MOTION
+======= */
+
+@media (prefers-reduced-motion: reduce) {
+
+    .customer-loader-content,
+    .loader-plate,
+    .loader-plate span,
+    .loader-ring,
+    .customer-loader-dots span {
+        animation: none;
+    }
+
+}
+
+
+.plate-icon {
+  width: 100%;       
+  height: 100%;      
+  max-width: 40px;   
+  object-fit: contain; 
+  display: block;
+  margin: 0 auto;    
+}
