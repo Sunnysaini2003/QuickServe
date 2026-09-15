@@ -11,6 +11,7 @@ const createOrder = async (req, res, next) => {
       notes: req.body.notes,
     });
 
+
     return success(res, "Order placed successfully", order, 201);
   } catch (error) {
     next(error);
@@ -165,6 +166,19 @@ const updateManagerOrderStatus = async (req, res, next) => {
       req.body.status,
     );
 
+    const io = req.app.get("io");
+
+    if (io) {
+      if (order.session_id) {
+        io.to(`session_${order.session_id}`).emit(
+          "order_status_updated",
+          order,
+        );
+      }
+
+      io.to("kitchen").emit("order_status_updated", order);
+    }
+
     return success(res, "Manager order status updated successfully", order);
   } catch (error) {
     next(error);
@@ -178,6 +192,19 @@ const updateAdminOrderStatus = async (req, res, next) => {
       req.body.status,
     );
 
+    const io = req.app.get("io");
+
+    if (io) {
+      if (order.session_id) {
+        io.to(`session_${order.session_id}`).emit(
+          "order_status_updated",
+          order,
+        );
+      }
+
+      io.to("kitchen").emit("order_status_updated", order);
+    }
+
     return success(res, "Order status updated successfully", order);
   } catch (error) {
     next(error);
@@ -185,25 +212,25 @@ const updateAdminOrderStatus = async (req, res, next) => {
 };
 
 const createManagerAssistedOrder = async (req, res, next) => {
-    try {
-        const order = await orderService.createManagerAssistedOrder({
-            managerUserId:
-                req.user.id ||
-                req.user.userId ||
-                req.user.user_id,
+  try {
+    const order = await orderService.createManagerAssistedOrder({
+      managerUserId:
+        req.user.id ||
+        req.user.userId ||
+        req.user.user_id,
 
-            ...req.body,
-        });
+      ...req.body,
+    });
 
-        return success(
-            res,
-            "Assisted order placed successfully",
-            order,
-            201
-        );
-    } catch (error) {
-        next(error);
-    }
+    return success(
+      res,
+      "Assisted order placed successfully",
+      order,
+      201
+    );
+  } catch (error) {
+    next(error);
+  }
 };
 
 module.exports = {

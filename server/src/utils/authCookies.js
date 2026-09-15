@@ -62,13 +62,25 @@ const normalizeRole = (role) => {
 
 
 const getCookieOptions = (maxAge) => {
-    const sameSite = String(
-        env.COOKIE_SAME_SITE || "lax"
-    ).toLowerCase();
+    const isProduction =
+        String(env.NODE_ENV || "development").toLowerCase() ===
+        "production";
 
-    const secure =
-        String(env.COOKIE_SECURE).toLowerCase() ===
-        "true";
+    /*
+     * QuickServe is split across Vercel and Render in production.
+     * The browser therefore needs cross-site cookies for the
+     * credentialed API and Socket.IO polling requests.
+     *
+     * SameSite=None requires Secure=true in browsers.
+     * Local development keeps the configured values.
+     */
+    const sameSite = isProduction
+        ? "none"
+        : String(env.COOKIE_SAME_SITE || "lax").toLowerCase();
+
+    const secure = isProduction
+        ? true
+        : String(env.COOKIE_SECURE).toLowerCase() === "true";
 
     return {
         httpOnly: true,
@@ -163,8 +175,8 @@ const setEmployeeAuthCookie = (
     const cookieName =
         normalizedRole
             ? EMPLOYEE_COOKIE_NAMES[
-                  normalizedRole
-              ]
+            normalizedRole
+            ]
             : null;
 
     if (!cookieName || !token) {
@@ -193,8 +205,8 @@ const clearEmployeeAuthCookie = (
     const cookieName =
         normalizedRole
             ? EMPLOYEE_COOKIE_NAMES[
-                  normalizedRole
-              ]
+            normalizedRole
+            ]
             : null;
 
     if (!cookieName) {
@@ -219,8 +231,8 @@ const getEmployeeTokenFromRequest = (
     const cookieName =
         normalizedRole
             ? EMPLOYEE_COOKIE_NAMES[
-                  normalizedRole
-              ]
+            normalizedRole
+            ]
             : null;
 
     if (!cookieName) {
@@ -325,8 +337,8 @@ const getRefreshCookieName = (
 
     return normalizedRole
         ? REFRESH_COOKIE_NAMES[
-              normalizedRole
-          ]
+        normalizedRole
+        ]
         : null;
 };
 
