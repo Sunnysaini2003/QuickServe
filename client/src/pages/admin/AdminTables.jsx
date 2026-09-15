@@ -10,11 +10,11 @@ import {
 
 import "./Tables.css";
 
-const API_URL = import.meta.env.VITE_API_URL;
-
+const API_URL = (
+  import.meta.env.VITE_API_URL || "http://localhost:5000"
+).replace(/\/+$/, "");
 
 // IMAGE URL
-
 
 const getImageUrl = (image) => {
   if (!image) {
@@ -46,9 +46,7 @@ const getImageUrl = (image) => {
   return `${API_URL}/uploads/qr/${imagePath}`;
 };
 
-
 // BOOLEAN
-
 
 const toBoolean = (value) => {
   return (
@@ -61,9 +59,7 @@ const toBoolean = (value) => {
   );
 };
 
-
 // EXTRACT ARRAY
-
 
 const extractArray = (response) => {
   if (Array.isArray(response?.data?.data)) {
@@ -81,14 +77,10 @@ const extractArray = (response) => {
   return [];
 };
 
-
 // ADMIN TABLES
 
-
 const AdminTables = () => {
-  
   // STATE
-  
 
   const [tables, setTables] = useState([]);
 
@@ -113,9 +105,7 @@ const AdminTables = () => {
     status: true,
   });
 
-  
   // LOAD TABLES
-  
 
   const loadTables = async () => {
     try {
@@ -141,17 +131,13 @@ const AdminTables = () => {
     }
   };
 
-  
   // INITIAL LOAD
-  
 
   useEffect(() => {
     loadTables();
   }, []);
 
-  
   // RESET FORM
-  
 
   const resetForm = () => {
     setForm({
@@ -160,9 +146,7 @@ const AdminTables = () => {
     });
   };
 
-  
   // OPEN CREATE
-  
 
   const openCreateModal = () => {
     setEditingTable(null);
@@ -174,9 +158,7 @@ const AdminTables = () => {
     setShowModal(true);
   };
 
-  
   // OPEN EDIT
-  
 
   const openEditModal = (table) => {
     setEditingTable(table);
@@ -192,9 +174,7 @@ const AdminTables = () => {
     setShowModal(true);
   };
 
-  
   // CLOSE MODAL
-  
 
   const closeModal = () => {
     if (saving) {
@@ -210,9 +190,7 @@ const AdminTables = () => {
     setError("");
   };
 
-  
   // CHANGE
-  
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -224,9 +202,7 @@ const AdminTables = () => {
     }));
   };
 
-  
   // SAVE
-  
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -277,9 +253,7 @@ const AdminTables = () => {
     }
   };
 
-  
   // DELETE
-  
 
   const handleDelete = async (table) => {
     const confirmed = window.confirm(
@@ -306,9 +280,7 @@ const AdminTables = () => {
     }
   };
 
-  
   // STATUS
-  
 
   const handleToggleStatus = async (table) => {
     try {
@@ -329,9 +301,7 @@ const AdminTables = () => {
     }
   };
 
-  
   // QR
-  
 
   const openQrModal = (table) => {
     const imageUrl = getImageUrl(table.qr_image);
@@ -351,9 +321,7 @@ const AdminTables = () => {
     setShowQrModal(true);
   };
 
-  
   // CLOSE QR
-  
 
   const closeQrModal = () => {
     setShowQrModal(false);
@@ -361,9 +329,7 @@ const AdminTables = () => {
     setSelectedQr(null);
   };
 
-  
   // SEARCH
-  
 
   const safeTables = Array.isArray(tables) ? tables : [];
 
@@ -375,9 +341,7 @@ const AdminTables = () => {
       .includes(searchText);
   });
 
-  
   // RENDER
-  
 
   return (
     <div className="tables-page">
