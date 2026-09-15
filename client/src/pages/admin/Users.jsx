@@ -9,7 +9,7 @@ import {
 
 import "./Users.css";
 
-const API_URL = import.meta.env.VITE_API_URL;
+import { getImageUrl } from "../../utils/helpers";
 
 const initialForm = {
   name: "",
@@ -112,7 +112,7 @@ const Users = () => {
     });
 
     setImagePreview(
-      user.profile_image ? `${API_URL}${user.profile_image}` : "",
+      user.profile_image ? getImageUrl(user.profile_image) : "",
     );
 
     setFormError("");
@@ -406,7 +406,7 @@ const Users = () => {
                         {user.profile_image ? (
                           <img
                             className="user-avatar"
-                            src={`${API_URL}${user.profile_image}`}
+                            src={getImageUrl(user.profile_image)}
                             alt={user.name}
                           />
                         ) : (

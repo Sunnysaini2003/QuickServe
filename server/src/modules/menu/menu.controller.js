@@ -1,6 +1,7 @@
 const menuService = require("./menu.service");
 
 const { success } = require("../../utils/apiResponse");
+const { uploadBufferToCloudinary } = require("../../utils/cloudinaryUpload");
 
 // GET ALL MENU
 
@@ -41,12 +42,15 @@ const createMenu = async (req, res, next) => {
     
 
     if (req.file) {
-      // Store relative path in database.
-      //
-      // Example:
-      // /uploads/menu/abc123.jpg
+      const uploadResult = await uploadBufferToCloudinary(
+        req.file.buffer,
+        {
+          folder: "quickserve/menu",
+          resource_type: "image"
+        }
+      );
 
-      data.image = `/uploads/menu/${req.file.filename}`;
+      data.image = uploadResult.secure_url;
     }
 
     console.log("CREATE MENU BODY:", data);
@@ -74,7 +78,15 @@ const updateMenu = async (req, res, next) => {
     
 
     if (req.file) {
-      data.image = `/uploads/menu/${req.file.filename}`;
+      const uploadResult = await uploadBufferToCloudinary(
+        req.file.buffer,
+        {
+          folder: "quickserve/menu",
+          resource_type: "image"
+        }
+      );
+
+      data.image = uploadResult.secure_url;
     }
 
     console.log("UPDATE MENU BODY:", data);

@@ -1,4 +1,5 @@
 const userService = require("./user.service");
+const { uploadBufferToCloudinary } = require("../../utils/cloudinaryUpload");
 
 
 
@@ -15,8 +16,15 @@ const createUser = async (req, res, next) => {
 
         // Add uploaded profile image
         if (req.file) {
-            userData.profile_image =
-                `/uploads/users/${req.file.filename}`;
+            const uploadResult = await uploadBufferToCloudinary(
+                req.file.buffer,
+                {
+                    folder: "quickserve/users",
+                    resource_type: "image"
+                }
+            );
+
+            userData.profile_image = uploadResult.secure_url;
         }
 
         const user =
@@ -87,8 +95,15 @@ const updateUser = async (req, res, next) => {
 
         // Add uploaded profile image
         if (req.file) {
-            updateData.profile_image =
-                `/uploads/users/${req.file.filename}`;
+            const uploadResult = await uploadBufferToCloudinary(
+                req.file.buffer,
+                {
+                    folder: "quickserve/users",
+                    resource_type: "image"
+                }
+            );
+
+            updateData.profile_image = uploadResult.secure_url;
         }
 
         const user =

@@ -1,5 +1,6 @@
 const categoriesService = require("./category.service");
 const { success } = require("../../utils/apiResponse");
+const { uploadBufferToCloudinary } = require("../../utils/cloudinaryUpload");
 
 
 // GET ALL CATEGORIES
@@ -49,15 +50,24 @@ const createCategory = async (req, res, next) => {
 
     try {
 
+        let image = null;
+
+        if (req.file) {
+            const uploadResult = await uploadBufferToCloudinary(
+                req.file.buffer,
+                {
+                    folder: "quickserve/categories",
+                    resource_type: "image"
+                }
+            );
+
+            image = uploadResult.secure_url;
+        }
+
         const category =
             await categoriesService.createCategory({
-
                 ...req.body,
-
-                image: req.file
-                    ? `/uploads/categories/${req.file.filename}`
-                    : null
-
+                image
             });
 
         return success(
@@ -83,10 +93,17 @@ const updateCategory = async (req, res, next) => {
             ...req.body,
         };
 
-        // If a new image was uploaded
+        // If a new image was uploaded, store the Cloudinary URL.
         if (req.file) {
-            updateData.image =
-                `/uploads/categories/${req.file.filename}`;
+            const uploadResult = await uploadBufferToCloudinary(
+                req.file.buffer,
+                {
+                    folder: "quickserve/categories",
+                    resource_type: "image"
+                }
+            );
+
+            updateData.image = uploadResult.secure_url;
         }
 
         const category =

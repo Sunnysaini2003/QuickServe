@@ -1,9 +1,12 @@
-const API_URL = (
+// src/utils/helpers.js
+
+export const API_URL = (
     import.meta.env.VITE_API_URL || "http://localhost:5000"
 ).replace(/\/+$/, "");
 
-export { API_URL };
-
+/**
+ * Formats image paths into valid URLs
+ */
 export const getImageUrl = (image) => {
     if (!image || typeof image !== "string") {
         return null;
@@ -15,33 +18,31 @@ export const getImageUrl = (image) => {
         return null;
     }
 
-    // Already an absolute URL/data/blob URL
+    // Already a full URL or base64 image
     if (/^(https?:\/\/|data:|blob:)/i.test(path)) {
         return path;
     }
 
+    // Remove all leading slashes
     const cleanPath = path.replace(/^\/+/, "");
 
-    // Database stores uploads/...
     if (cleanPath.startsWith("uploads/")) {
         return `${API_URL}/${cleanPath}`;
     }
 
-    // Filename only = menu image
     return `${API_URL}/uploads/menu/${cleanPath}`;
 };
 
+/**
+ * Safely converts various truthy values to a strict boolean
+ */
 export const toBoolean = (value) => {
-    return [
-        true,
-        1,
-        "1",
-        "true",
-        "TRUE",
-        "True",
-    ].includes(value);
+    return [true, 1, "1", "true", "TRUE"].includes(value);
 };
 
+/**
+ * Safely extracts an array from various API response structures
+ */
 export const extractArray = (response) => {
     const data =
         response?.data?.data ??
@@ -51,6 +52,9 @@ export const extractArray = (response) => {
     return Array.isArray(data) ? data : [];
 };
 
+/**
+ * Safely extracts order details from various API response structures
+ */
 export const extractOrder = (response) => {
     return (
         response?.data?.data ||
