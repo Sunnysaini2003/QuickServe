@@ -2,15 +2,110 @@ const orderService = require("./order.service");
 const { success } = require("../../utils/apiResponse");
 const { buildXlsx, makePdf } = require("./order.export");
 const AppError = require("../../utils/AppError");
+const db = require("../../utils/db");
+const jwt = require("jsonwebtoken");
+const env = require("../../config/env");
+const { setCustomerSessionCookie } = require("../../utils/authCookies");
+
+const ensureActiveCustomerSession = async (customer) => {
+  const sessionId = Number(customer?.sessionId || 0);
+  const customerId = Number(customer?.customerId || 0);
+  const tableId = Number(customer?.tableId || 0);
+
+  if (!customerId || !tableId) {
+    throw new AppError(
+      "Customer table session is invalid. Please scan the table QR code again.",
+      409,
+    );
+  }
+
+  // Keep the existing session when possible. This preserves order history
+  // and the customer's existing Socket.IO room.
+  if (sessionId) {
+    const sessionRows = await db.query(
+      `SELECT id, customer_id, table_id, is_active
+       FROM table_sessions
+       WHERE id = ?
+       AND customer_id = ?
+       AND table_id = ?
+       LIMIT 1`,
+      [sessionId, customerId, tableId],
+    );
+
+    if (sessionRows.length) {
+      if (!sessionRows[0].is_active) {
+        await db.query(
+          `UPDATE table_sessions
+           SET is_active = 1, ended_at = NULL
+           WHERE id = ?
+           AND customer_id = ?
+           AND table_id = ?`,
+          [sessionId, customerId, tableId],
+        );
+      }
+
+      return { sessionId, token: null };
+    }
+  }
+
+  // The JWT session no longer exists. Reuse another active session for the
+  // same customer/table before creating a completely new session.
+  const activeRows = await db.query(
+    `SELECT id
+     FROM table_sessions
+     WHERE customer_id = ?
+     AND table_id = ?
+     AND is_active = 1
+     LIMIT 1`,
+    [customerId, tableId],
+  );
+
+  let activeSessionId;
+
+  if (activeRows.length) {
+    activeSessionId = activeRows[0].id;
+  } else {
+    const sessionToken = require("crypto").randomUUID();
+
+    const result = await db.query(
+      `INSERT INTO table_sessions
+       (session_token, customer_id, table_id, session_type, is_active)
+       VALUES (?, ?, ?, 'DineIn', 1)`,
+      [sessionToken, customerId, tableId],
+    );
+
+    activeSessionId = result.insertId;
+  }
+
+  const token = jwt.sign(
+    {
+      customerId,
+      sessionId: activeSessionId,
+      tableId,
+    },
+    env.CUSTOMER_JWT_SECRET,
+    { expiresIn: "12h" },
+  );
+
+  return {
+    sessionId: activeSessionId,
+    token,
+  };
+};
 
 const createOrder = async (req, res, next) => {
   try {
+    const session = await ensureActiveCustomerSession(req.customer);
+
+    if (session.token) {
+      setCustomerSessionCookie(res, session.token);
+    }
+
     const order = await orderService.createOrder({
-      sessionId: req.customer.sessionId,
+      sessionId: session.sessionId,
       items: req.body.items,
       notes: req.body.notes,
     });
-
 
     return success(res, "Order placed successfully", order, 201);
   } catch (error) {
@@ -212,25 +307,25 @@ const updateAdminOrderStatus = async (req, res, next) => {
 };
 
 const createManagerAssistedOrder = async (req, res, next) => {
-  try {
-    const order = await orderService.createManagerAssistedOrder({
-      managerUserId:
-        req.user.id ||
-        req.user.userId ||
-        req.user.user_id,
+    try {
+        const order = await orderService.createManagerAssistedOrder({
+            managerUserId:
+                req.user.id ||
+                req.user.userId ||
+                req.user.user_id,
 
-      ...req.body,
-    });
+            ...req.body,
+        });
 
-    return success(
-      res,
-      "Assisted order placed successfully",
-      order,
-      201
-    );
-  } catch (error) {
-    next(error);
-  }
+        return success(
+            res,
+            "Assisted order placed successfully",
+            order,
+            201
+        );
+    } catch (error) {
+        next(error);
+    }
 };
 
 module.exports = {

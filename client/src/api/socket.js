@@ -4,9 +4,21 @@ const apiBaseUrl = String(
   import.meta.env.VITE_API_URL || "http://localhost:5000"
 ).replace(/\/+$/, "");
 
-const SOCKET_URL = String(
-  import.meta.env.VITE_SOCKET_URL || apiBaseUrl
-).replace(/\/+$/, "");
+const runtimeHostname =
+  typeof window !== "undefined"
+    ? window.location.hostname
+    : "";
+
+const isVercelProduction = runtimeHostname.endsWith(".vercel.app");
+
+// On Vercel, keep Socket.IO same-origin so the HttpOnly auth cookie
+// created through the /api rewrite is sent with the polling request.
+// The Vercel rewrite forwards /socket.io/* to the Render Socket.IO server.
+const SOCKET_URL = isVercelProduction
+  ? window.location.origin
+  : String(
+      import.meta.env.VITE_SOCKET_URL || apiBaseUrl
+    ).replace(/\/+$/, "");
 
 
 /*
@@ -25,8 +37,10 @@ const refreshSocketAuth = async (role) => {
     );
   }
 
+  const refreshBaseUrl = isVercelProduction ? "" : apiBaseUrl;
+
   const response = await fetch(
-    `${apiBaseUrl}/api/auth/refresh`,
+    `${refreshBaseUrl}/api/auth/refresh`,
     {
       method: "POST",
       credentials: "include",
@@ -34,7 +48,7 @@ const refreshSocketAuth = async (role) => {
         "X-QuickServe-Role": role,
         "Content-Type": "application/json",
       },
-      body: "null",
+      body: JSON.stringify({}),
     },
   );
 
@@ -87,6 +101,8 @@ export const createSocket = ({
    * rewrite.
    */
   const socket = io(SOCKET_URL, {
+    path: "/socket.io",
+
     auth: {
       role,
     },
@@ -97,17 +113,16 @@ export const createSocket = ({
     withCredentials: true,
 
     /*
-     * QuickServe is deployed with the React app on Vercel
-     * and the Socket.IO server on Render.
+     * Start with polling.
      *
-     * Keep the transport on HTTP long-polling in production.
-     * This avoids the failing WebSocket upgrade seen when
-     * the browser moves from polling to wss:// on Render.
-     * Socket.IO polling remains a realtime connection and
-     * still uses the authenticated HttpOnly cookies.
+     * This is more reliable on mobile networks and
+     * allows Socket.IO to upgrade to WebSocket later
+     * when possible.
      */
     transports: ["polling"],
 
+    // Vercel's external rewrite is used for Socket.IO polling.
+    // Do not attempt a browser WebSocket upgrade through the rewrite.
     upgrade: false,
 
     reconnection: true,
@@ -195,15 +210,7 @@ export const createSocket = ({
    * TRANSPORT UPGRADE
    */
 
-  socket.io.engine?.on(
-    "upgrade",
-    (transport) => {
-      console.log(
-        "🔄 Socket transport upgraded:",
-        transport.name,
-      );
-    },
-  );
+  // No transport upgrade in production; polling is intentional.
 
 
   /*
