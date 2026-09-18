@@ -1,21 +1,20 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "rewrites": [
+  "routes": [
     {
-      "source": "/api/socket.io",
-      "destination": "https://quickserve-api-1uhl.onrender.com/socket.io"
+      "src": "^/api/socket\\.io(?:/(.*))?$",
+      "dest": "https://quickserve-api-1uhl.onrender.com/socket.io/$1"
     },
     {
-      "source": "/api/socket.io/:path*",
-      "destination": "https://quickserve-api-1uhl.onrender.com/socket.io/:path*"
+      "src": "^/api/(.*)$",
+      "dest": "https://quickserve-api-1uhl.onrender.com/api/$1"
     },
     {
-      "source": "/api/:path*",
-      "destination": "https://quickserve-api-1uhl.onrender.com/api/:path*"
+      "handle": "filesystem"
     },
     {
-      "source": "/(.*)",
-      "destination": "/index.html"
+      "src": "^/(.*)$",
+      "dest": "/index.html"
     }
   ]
 }
