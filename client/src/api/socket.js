@@ -17,8 +17,8 @@ const isVercelProduction = runtimeHostname.endsWith(".vercel.app");
 const SOCKET_URL = isVercelProduction
   ? window.location.origin
   : String(
-      import.meta.env.VITE_SOCKET_URL || apiBaseUrl
-    ).replace(/\/+$/, "");
+    import.meta.env.VITE_SOCKET_URL || apiBaseUrl
+  ).replace(/\/+$/, "");
 
 
 /*
@@ -101,7 +101,7 @@ export const createSocket = ({
    * rewrite.
    */
   const socket = io(SOCKET_URL, {
-    path: "/socket.io",
+    path: "/api/socket.io",
 
     auth: {
       role,

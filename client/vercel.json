@@ -1,12 +1,17 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
+    {
+      "source": "/api/socket.io",
+      "destination": "https://quickserve-api-1uhl.onrender.com/socket.io"
+    },
+    {
+      "source": "/api/socket.io/:path*",
+      "destination": "https://quickserve-api-1uhl.onrender.com/socket.io/:path*"
+    },
     {
       "source": "/api/:path*",
       "destination": "https://quickserve-api-1uhl.onrender.com/api/:path*"
-    },
-    {
-      "source": "/socket.io/:path*",
-      "destination": "https://quickserve-api-1uhl.onrender.com/socket.io/:path*"
     },
     {
       "source": "/(.*)",
