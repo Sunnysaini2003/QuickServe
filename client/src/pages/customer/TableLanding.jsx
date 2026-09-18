@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { useSearchParams, useNavigate } from "react-router-dom";
+import { QrCode, Camera, UtensilsCrossed } from "lucide-react";
 
 import { getTableByToken } from "../../api/table.api";
 
@@ -80,7 +81,7 @@ const TableLanding = () => {
       if (!tableToken) {
         if (mounted) {
           setTable(null);
-          setError("Invalid QR code. Table token is missing.");
+          setError("");
           setLoading(false);
         }
 
@@ -582,6 +583,67 @@ const TableLanding = () => {
 
   if (loading) {
     return <CustomerLoader message="Finding your table..." />;
+  }
+
+  // WELCOME / SCAN QR
+
+  if (!getTableToken()) {
+    return (
+      <main className="table-landing-page">
+        <section className="table-landing-card table-welcome-card">
+          <div className="table-brand">
+            <img src={myLogo} alt="QuickServe" className="table-brand-logo" />
+
+            <span className="table-brand-caption">SMART TABLE ORDERING</span>
+          </div>
+
+          <div className="welcome-qr-icon" aria-hidden="true">
+            <QrCode size={58} strokeWidth={1.7} />
+          </div>
+
+          <div className="table-welcome table-home-welcome">
+            <span className="table-welcome-eyebrow">WELCOME TO QUICKSERVE</span>
+
+            <h2>Scan to place your order</h2>
+
+            <p>
+              Use your phone camera to scan the QR code on your table. No app is
+              required.
+            </p>
+          </div>
+
+          <div className="welcome-steps">
+            <div className="welcome-step">
+              <span className="welcome-step-icon">
+                <Camera size={18} strokeWidth={2} />
+              </span>
+              <div>
+                <strong>Scan the table QR</strong>
+                <small>
+                  Point your phone camera at the QR code provided on your table.
+                </small>
+              </div>
+            </div>
+
+            <div className="welcome-step">
+              <span className="welcome-step-icon">
+                <UtensilsCrossed size={18} strokeWidth={2} />
+              </span>
+              <div>
+                <strong>View menu &amp; order</strong>
+                <small>
+                  Choose your items, add them to your cart and place your order.
+                </small>
+              </div>
+            </div>
+          </div>
+
+          <div className="welcome-note">
+            <span>✓</span> No app download &nbsp; • &nbsp; Fast table ordering
+          </div>
+        </section>
+      </main>
+    );
   }
 
   // TABLE ERROR
