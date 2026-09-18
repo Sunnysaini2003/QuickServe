@@ -14,6 +14,17 @@ const io = new Server(server, {
     credentials: true,
   },
 });
+io.engine.on("connection_error", (error) => {
+  console.error("❌ Socket.IO Engine connection error:", {
+    code: error.code,
+    message: error.message,
+    context: error.context,
+    origin: error.req?.headers?.origin,
+    url: error.req?.url,
+    userAgent: error.req?.headers?.["user-agent"],
+  });
+});
+
 
 app.set("io", io);
 initializeSocket(io);
